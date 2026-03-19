@@ -17,6 +17,7 @@ import DetailRespond from './pages/contractor/DetailRespond';
 import Dashboard from './pages/Dashboard';
 import QuoteHistory from './pages/QuoteHistory';
 import QuoteView from './pages/QuoteView';
+import QuoteMerge from './pages/QuoteMerge';
 
 function PrivateRoute({ allowedRoles }: { allowedRoles?: UserRole[] }) {
   const { token, user } = useAuthStore();
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/my" element={<Dashboard />} />
         <Route path="/quotes" element={<QuoteHistory />} />
         <Route path="/quotes/view/:id" element={<QuoteView />} />
+        <Route path="/quotes/merge" element={<QuoteMerge />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

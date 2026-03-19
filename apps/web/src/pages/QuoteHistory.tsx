@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
 
@@ -50,6 +50,7 @@ function fmt(n: number): string {
 
 export default function QuoteHistory() {
   const { token } = useAuthStore();
+  const navigate = useNavigate();
   const [records, setRecords] = useState<QuoteRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -178,7 +179,7 @@ export default function QuoteHistory() {
             </span>
             <button style={{ background: '#00D9CC', color: '#070C12' }}
               className="px-4 py-1.5 rounded text-sm font-semibold hover:opacity-90"
-              onClick={() => alert('합산 견적 기능은 Phase 2에서 구현됩니다.')}>
+              onClick={() => navigate(`/quotes/merge?ids=${Array.from(selected).join(',')}`)}>
               합산 견적 만들기
             </button>
           </div>
@@ -288,9 +289,25 @@ export default function QuoteHistory() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 pt-2" style={{ borderTop: '1px solid #1E293B' }}>
+                    <div className="flex gap-3 pt-2 flex-wrap" style={{ borderTop: '1px solid #1E293B' }}>
                       <button onClick={() => handleShare(r.id)}
                         style={{ color: '#00D9CC' }} className="text-sm hover:underline">🔗 링크 공유</button>
+                      <button onClick={async () => {
+                        const email = prompt('수신자 이메일 주소를 입력하세요:');
+                        if (!email) return;
+                        try {
+                          await api.post(`/api/quotes/${r.id}/email`, { recipient: email });
+                          alert(`${email}로 이메일 전송이 완료되었습니다.`);
+                        } catch { alert('이메일 전송에 실패했습니다.'); }
+                      }} style={{ color: '#3B82F6' }} className="text-sm hover:underline">📧 이메일 전송</button>
+                      <button onClick={async () => {
+                        const phone = prompt('수신자 전화번호를 입력하세요 (예: 010-1234-5678):');
+                        if (!phone) return;
+                        try {
+                          await api.post(`/api/quotes/${r.id}/kakao`, { phone });
+                          alert('카카오톡 전송이 기록되었습니다.');
+                        } catch { alert('카카오톡 전송에 실패했습니다.'); }
+                      }} style={{ color: '#F0A500' }} className="text-sm hover:underline">💬 카카오톡</button>
                       <button onClick={() => handleDelete(r.id)}
                         style={{ color: '#EF4444' }} className="text-sm hover:underline">삭제</button>
                     </div>

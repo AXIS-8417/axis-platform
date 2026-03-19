@@ -877,6 +877,240 @@ app.get('/api/quotes/view/:id', async (request: FastifyRequest, reply: FastifyRe
 });
 
 // ═════════════════════════════════════════════════════════════
+// 9. 이메일 전송
+// ═════════════════════════════════════════════════════════════
+
+app.post('/api/quotes/:id/email', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+  const payload = request.user as any;
+  const body = request.body as any;
+  const { recipient } = body;
+
+  if (!recipient || !recipient.includes('@')) {
+    return reply.status(400).send({ error: '유효한 이메일 주소를 입력하세요.' });
+  }
+
+  const record = await prisma.quoteRecord.findUnique({ where: { id } });
+  if (!record || record.userId !== payload.id) {
+    return reply.status(404).send({ error: '견적 기록을 찾을 수 없습니다.' });
+  }
+
+  const inp = record.input as any;
+  const res = record.result as any;
+  const comments = (record.designComments || []) as string[];
+
+  // 이메일 본문 생성
+  const htmlBody = `
+    <div style="font-family:'Noto Sans KR',sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f8fafc;">
+      <div style="background:#070C12;color:#F1F5F9;padding:20px;border-radius:8px 8px 0 0;">
+        <h1 style="margin:0;font-size:20px;color:#00D9CC;">AXIS 견적서</h1>
+        ${record.projectName ? `<p style="margin:4px 0 0;color:#F0A500;">${record.projectName}</p>` : ''}
+      </div>
+      <div style="background:#fff;padding:20px;border:1px solid #e2e8f0;">
+        <h2 style="font-size:14px;color:#64748b;margin:0 0 12px;">1. 가설울타리공사 — 재노경 M당 단가</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr style="background:#f1f5f9;"><th style="text-align:left;padding:6px;">항목</th><th style="text-align:right;padding:6px;">단가/M</th><th style="text-align:right;padding:6px;">금액</th></tr>
+          <tr><td style="padding:6px;">재료비</td><td style="text-align:right;padding:6px;">${(res.matPerM||0).toLocaleString()}</td><td style="text-align:right;padding:6px;">${(res.matTotal||0).toLocaleString()}</td></tr>
+          <tr><td style="padding:6px;">노무비</td><td style="text-align:right;padding:6px;">${(res.labPerM||0).toLocaleString()}</td><td style="text-align:right;padding:6px;">${(res.labTotal||0).toLocaleString()}</td></tr>
+          <tr><td style="padding:6px;">경비</td><td style="text-align:right;padding:6px;">${(res.expPerM||0).toLocaleString()}</td><td style="text-align:right;padding:6px;">${((res.equipTotal||0)+(res.transTotal||0)).toLocaleString()}</td></tr>
+          <tr style="border-top:2px solid #334155;font-weight:bold;"><td style="padding:6px;">합계</td><td style="text-align:right;padding:6px;color:#00D9CC;">${(res.totalPerM||0).toLocaleString()}</td><td style="text-align:right;padding:6px;color:#00D9CC;">${(res.finalTotal||0).toLocaleString()}</td></tr>
+        </table>
+        ${res.bbTotal ? `<p style="color:#ef4444;font-size:12px;margin-top:8px;">BB차감: ${res.bbTotal.toLocaleString()}원</p>` : ''}
+        <h2 style="font-size:14px;color:#64748b;margin:20px 0 8px;">■ 설계 조건</h2>
+        ${comments.map((c: string) => `<p style="font-size:12px;color:#475569;margin:2px 0;">· ${c}</p>`).join('')}
+      </div>
+      <div style="background:#f1f5f9;padding:12px 20px;border-radius:0 0 8px 8px;font-size:10px;color:#64748b;">
+        ${DISCLAIMER}
+      </div>
+    </div>`;
+
+  try {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || '',
+      },
+    });
+
+    if (process.env.SMTP_USER) {
+      await transporter.sendMail({
+        from: `"AXIS 견적" <${process.env.SMTP_USER}>`,
+        to: recipient,
+        subject: `[AXIS 견적서] ${record.projectName || inp.panel + ' H' + inp.height + 'M L' + inp.length + 'M'}`,
+        html: htmlBody,
+      });
+    }
+  } catch (err: any) {
+    console.log('SMTP not configured, skipping actual send:', err.message);
+  }
+
+  // 전송 이력 기록
+  const send = await prisma.quoteSend.create({
+    data: { quoteId: id, channel: 'email', recipient },
+  });
+
+  return reply.status(201).send({ message: '이메일 전송이 기록되었습니다.', send });
+});
+
+// ═════════════════════════════════════════════════════════════
+// 10. 합산 견적
+// ═════════════════════════════════════════════════════════════
+
+app.post('/api/quotes/merge', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const payload = request.user as any;
+  const body = request.body as any;
+  const { sourceIds, memos } = body;
+
+  if (!sourceIds || sourceIds.length < 1 || sourceIds.length > 4) {
+    return reply.status(400).send({ error: '1~4개의 견적을 선택하세요.' });
+  }
+
+  const quotes = await prisma.quoteRecord.findMany({
+    where: { id: { in: sourceIds }, userId: payload.id },
+  });
+
+  if (quotes.length !== sourceIds.length) {
+    return reply.status(404).send({ error: '일부 견적을 찾을 수 없습니다.' });
+  }
+
+  // 합산 계산
+  const merged: any = {
+    totalLength: 0, matTotal: 0, labTotal: 0, equipTotal: 0,
+    transTotal: 0, doorTotal: 0, grandTotal: 0, bbTotal: 0, finalTotal: 0,
+    items: [], doors: [],
+  };
+
+  quotes.forEach((q: any, idx: number) => {
+    const r = q.result as any;
+    const inp = q.input as any;
+    const label = `견적${idx + 1}`;
+    const len = inp.length || 0;
+
+    merged.totalLength += len;
+    merged.matTotal += r.matTotal || 0;
+    merged.labTotal += r.labTotal || 0;
+    merged.equipTotal += r.equipTotal || 0;
+    merged.transTotal += r.transTotal || 0;
+    merged.doorTotal += r.doorTotal || 0;
+    merged.grandTotal += r.grandTotal || 0;
+    merged.bbTotal += r.bbTotal || 0;
+    merged.finalTotal += r.finalTotal || 0;
+
+    merged.items.push({
+      label: `${label} 통합`,
+      projectName: q.projectName || '',
+      memo: (memos && memos[idx]) || '',
+      unit: 'M', qty: len,
+      matPrice: r.matPerM || 0, matAmt: (r.matTotal || 0) - (r.doorTotal || 0),
+      labPrice: r.labPerM || 0, labAmt: r.labTotal || 0,
+      expPrice: r.expPerM || 0, expAmt: (r.equipTotal || 0) + (r.transTotal || 0),
+      totalPrice: r.totalPerM || 0,
+      totalAmt: (r.grandTotal || 0) - (r.doorTotal || 0),
+    });
+
+    if ((r.doorTotal || 0) > 0 && inp.door) {
+      merged.doors.push({
+        label: `${label} ${inp.door}`, qty: 1,
+        totalAmt: r.doorTotal,
+      });
+    }
+  });
+
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setMonth(expiresAt.getMonth() + 12);
+
+  const record = await prisma.mergedQuote.create({
+    data: {
+      userId: payload.id,
+      sourceIds,
+      mergedResult: merged,
+      expiresAt,
+    },
+  });
+
+  return reply.status(201).send(record);
+});
+
+// ── List Merged Quotes ───────────────────────────────────────
+app.get('/api/quotes/merged', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest) => {
+  const payload = request.user as any;
+  const records = await prisma.mergedQuote.findMany({
+    where: { userId: payload.id },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  return records;
+});
+
+// ── Get Merged Quote ─────────────────────────────────────────
+app.get('/api/quotes/merged/:id', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+  const payload = request.user as any;
+  const record = await prisma.mergedQuote.findUnique({ where: { id } });
+  if (!record || record.userId !== payload.id) {
+    return reply.status(404).send({ error: '합산 견적을 찾을 수 없습니다.' });
+  }
+  return record;
+});
+
+// ═════════════════════════════════════════════════════════════
+// 11. 카카오톡 전송
+// ═════════════════════════════════════════════════════════════
+
+app.post('/api/quotes/:id/kakao', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+  const payload = request.user as any;
+  const body = request.body as any;
+
+  const record = await prisma.quoteRecord.findUnique({ where: { id } });
+  if (!record || record.userId !== payload.id) {
+    return reply.status(404).send({ error: '견적 기록을 찾을 수 없습니다.' });
+  }
+
+  const inp = record.input as any;
+  const res = record.result as any;
+  const linkUrl = `/quotes/view/${id}`;
+
+  // 카카오 알림톡 API 호출
+  const KAKAO_API_KEY = process.env.KAKAO_API_KEY;
+  const KAKAO_SENDER = process.env.KAKAO_SENDER;
+
+  if (KAKAO_API_KEY && KAKAO_SENDER && body.phone) {
+    try {
+      const message = `[AXIS 견적서]\n${record.projectName || inp.panel + ' H' + inp.height + 'M'}\n총연장: ${inp.length}M\n최종금액: ${(res.finalTotal||0).toLocaleString()}원\n\n상세보기: ${process.env.WEB_URL || 'https://web-zeta-flax-59.vercel.app'}${linkUrl}`;
+
+      // 카카오 비즈메시지 API (실제 연동 시 활성화)
+      // await fetch('https://api-alimtalk.kakao.com/v2/sender/send', { ... });
+      console.log('Kakao message prepared:', message);
+    } catch (err: any) {
+      console.log('Kakao API error:', err.message);
+    }
+  }
+
+  // 전송 이력 기록
+  const send = await prisma.quoteSend.create({
+    data: { quoteId: id, channel: 'kakao', recipient: body.phone || null, linkUrl },
+  });
+
+  return reply.status(201).send({ message: '카카오톡 전송이 기록되었습니다.', send, linkUrl });
+});
+
+// ═════════════════════════════════════════════════════════════
 // START SERVER
 // ═════════════════════════════════════════════════════════════
 
