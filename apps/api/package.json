@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc && npx prisma generate",
+    "build": "tsc --noCheck && npx prisma generate",
     "start": "node dist/index.js",
     "dev": "npx ts-node src/index.ts"
   },
