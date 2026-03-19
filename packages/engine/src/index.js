@@ -33,19 +33,19 @@ exports.REGION_DB = {
 // ══════════════════════════════════════════
 exports.PANEL_PRICE = {
     '스틸': { 신재: 21000, 고재: 5000 },
-    RPP: { 신재: 28000, 고재: 8000 },
+    RPP: { 신재: 28000, 고재: 8300 },
     EGI: { 신재: 9000, 고재: 3000 },
 };
 exports.PIPE_PRICE = {
-    주주파이프: { 신재: 15800, 고재: 5000 },
-    횡대파이프: { 신재: 15800, 고재: 5000 },
+    주주파이프: { 신재: 15800, 고재: 11000 },
+    횡대파이프: { 신재: 15800, 고재: 15800 },
     지주파이프: { 신재: 8400, 고재: 8400 },
     기초파이프: { 신재: 4500, 고재: 4500 },
 };
 exports.MISC_PRICE = {
     고정클램프: 1800, 자동클램프: 1900, 연결핀: 1200,
     분진망: 15000, 굴착기: 715000,
-    양개조이너: 300, 후크볼트: 200,
+    양개조이너: 0, 후크볼트: 200,
 };
 // ══════════════════════════════════════════
 // BB 파라미터 (No.59) — BUG-06: init=차감률
@@ -106,8 +106,10 @@ function getPriceGrade(cat, asset) {
         return cat === 'pipe' ? '신재' : '고재';
     return '고재';
 }
-// BB 등급: 클램프도 자산구분에 따라 고재/신재 BB율 분기
+// BB 등급: 부자재(클램프/연결핀)는 자산구분 무관 항상 신재 rate
 function getBBGrade(cat, asset) {
+    if (cat === 'clamp')
+        return '신재'; // ★ 부자재는 항상 신재 BB율
     if (asset === '전체신재')
         return '신재';
     if (asset === '전체고재')
@@ -186,7 +188,7 @@ function makeDesign(h, floor, panel, std, dustN = 0) {
 // ══════════════════════════════════════════
 function calcBOM(len, h, panel, design, dustN) {
     const span = design.span;
-    const juju = Math.floor(len / span) + 1;
+    const juju = Math.ceil(len / span) + 1;
     // BUG-03: 지주 = 주주-1 (양끝에 지주 없음)
     const jiuju = design.jiju === '1:1' ? juju - 1 : Math.ceil(juju / 2) - 1;
     const hwN = design.hwangdae;
@@ -218,7 +220,7 @@ function calcBOM(len, h, panel, design, dustN) {
     }
     else if (panel === 'RPP') {
         specialName = '양개조이너';
-        specialQty = hwN * panelQty;
+        specialQty = (hwN + 1) * panelQty;
         specialPrice = exports.MISC_PRICE.양개조이너;
     }
     else if (panel === 'EGI') {
@@ -343,7 +345,7 @@ function calcEstimate(input, design, opts) {
             bbRefund += Math.round(amt * rate);
         }
     }
-    const eqpTotal = 2 * exports.MISC_PRICE.굴착기;
+    const eqpTotal = exports.MISC_PRICE.굴착기;
     const labor = calcLabor(L, input.h, input.panel, design.span, isBB, dustH, design.isHBeam);
     const labTotal = labor.total;
     const trans = calcTransport(reg.dist, L, isBB);

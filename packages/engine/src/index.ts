@@ -172,8 +172,8 @@ export function makeDesign(h: number, floor: string, panel: string, std: boolean
 export function calcBOM(len: number, h: number, panel: string, design: Design, dustN: number) {
   const span = design.span;
   const juju = Math.ceil(len / span) + 1;
-  // BUG-03: 지주 = 주주-1 (양끝에 지주 없음)
-  const jiuju = design.jiju === '1:1' ? juju - 1 : Math.ceil(juju / 2) - 1;
+  // BUG-03: 지주 = 주주-1 (양끝에 지주 없음, 배치비율 무관)
+  const jiuju = juju - 1;
   const hwN = design.hwangdae;
   // BUG-02: 횡대수 = (floor(len/6)+1)*단수-1
   const hwCnt = (Math.floor(len / 6) + 1) * hwN - 1;
