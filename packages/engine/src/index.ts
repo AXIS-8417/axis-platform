@@ -15,19 +15,19 @@ export const REGION_DB: Record<string, { Vo: number; dist: number; rc: number }>
 // ══════════════════════════════════════════
 export const PANEL_PRICE: Record<string, Record<string, number>> = {
   '스틸': { 신재: 21000, 고재: 5000 },
-  RPP:   { 신재: 28000, 고재: 8000 },
+  RPP:   { 신재: 28000, 고재: 8300 },
   EGI:   { 신재: 9000,  고재: 3000 },
 };
 export const PIPE_PRICE: Record<string, Record<string, number>> = {
-  주주파이프: { 신재: 15800, 고재: 5000 },
-  횡대파이프: { 신재: 15800, 고재: 5000 },
+  주주파이프: { 신재: 15800, 고재: 11000 },
+  횡대파이프: { 신재: 15800, 고재: 15800 },
   지주파이프: { 신재: 8400,  고재: 8400 },
   기초파이프: { 신재: 4500,  고재: 4500 },
 };
 export const MISC_PRICE: Record<string, number> = {
   고정클램프: 1800, 자동클램프: 1900, 연결핀: 1200,
   분진망: 15000, 굴착기: 715000,
-  양개조이너: 300, 후크볼트: 200,
+  양개조이너: 0, 후크볼트: 200,
 };
 
 // ══════════════════════════════════════════
@@ -88,8 +88,9 @@ function getPriceGrade(cat: 'panel'|'pipe'|'clamp', asset: AssetType): '신재'|
   if (asset === '파이프만신재') return cat === 'pipe' ? '신재' : '고재';
   return '고재';
 }
-// BB 등급: 클램프도 자산구분에 따라 고재/신재 BB율 분기
+// BB 등급: 부자재(클램프/연결핀)는 자산구분 무관 항상 신재 rate
 function getBBGrade(cat: 'panel'|'pipe'|'clamp', asset: AssetType): '신재'|'고재' {
+  if (cat === 'clamp') return '신재'; // ★ 부자재는 항상 신재 BB율
   if (asset === '전체신재') return '신재';
   if (asset === '전체고재') return '고재';
   if (asset === '판넬만신재') return cat === 'panel' ? '신재' : '고재';
@@ -170,7 +171,7 @@ export function makeDesign(h: number, floor: string, panel: string, std: boolean
 // ══════════════════════════════════════════
 export function calcBOM(len: number, h: number, panel: string, design: Design, dustN: number) {
   const span = design.span;
-  const juju = Math.floor(len / span) + 1;
+  const juju = Math.ceil(len / span) + 1;
   // BUG-03: 지주 = 주주-1 (양끝에 지주 없음)
   const jiuju = design.jiju === '1:1' ? juju - 1 : Math.ceil(juju / 2) - 1;
   const hwN = design.hwangdae;
@@ -193,7 +194,7 @@ export function calcBOM(len: number, h: number, panel: string, design: Design, d
   // 전용부자재
   let specialName = ''; let specialQty = 0; let specialPrice = 0;
   if (panel === '스틸') { specialName = 'H-BAR'; specialQty = (juju-1)+2; specialPrice = 0; }
-  else if (panel === 'RPP') { specialName = '양개조이너'; specialQty = hwN * panelQty; specialPrice = MISC_PRICE.양개조이너; }
+  else if (panel === 'RPP') { specialName = '양개조이너'; specialQty = (hwN + 1) * panelQty; specialPrice = MISC_PRICE.양개조이너; }
   else if (panel === 'EGI') { specialName = '후크볼트'; specialQty = panelQty * hwN * 2; specialPrice = MISC_PRICE.후크볼트; }
 
   return { juju, jiuju, hwN, hwCnt, jadong, gojung, pin, dustRolls, gichoQty, panelQty,
@@ -346,7 +347,7 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     }
   }
 
-  const eqpTotal = 2 * MISC_PRICE.굴착기;
+  const eqpTotal = MISC_PRICE.굴착기;
   const labor = calcLabor(L, input.h, input.panel, design.span, isBB, dustH, design.isHBeam);
   const labTotal = labor.total;
   const trans = calcTransport(reg.dist, L, isBB);
