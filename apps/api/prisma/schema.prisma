@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  role        Role
+  companyName String
+  region      String?
+  createdAt   DateTime @default(now())
+  requests    EstimateRequest[]
+  responses   ContractorResponse[]
+}
+
+enum Role {
+  GAP
+  EUL
+  ADMIN
+}
+
+model EstimateRequest {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  status    String   @default("DRAFT")
+
+  addr       String?
+  region     String
+  lenM       Float
+  panelType  String
+  heightM    Float
+  floorType  String
+
+  gateType   String  @default("없음")
+  gateGrade  String  @default("신재")
+  gateWidthM Int?
+  gateSide   String?
+  gateMesh   Boolean @default(false)
+
+  selectedAsset    String?
+  selectedContract String?
+  bbMonths         Int     @default(0)
+  disclosureLevel  String  @default("L2")
+
+  clientId  String
+  client    User    @relation(fields: [clientId], references: [id])
+
+  engineResults EngineResult[]
+  responses     ContractorResponse[]
+  comparisons   ComparisonResult[]
+}
+
+model EngineResult {
+  id           String   @id @default(uuid())
+  requestId    String
+  request      EstimateRequest @relation(fields: [requestId], references: [id])
+  designMode   String
+  assetType    String
+  contractType String
+  bbMonths     Int      @default(0)
+  matPerM      Int
+  labPerM      Int
+  matTotal     Int
+  labTotal     Int
+  eqpTotal     Int
+  gateTotal    Int      @default(0)
+  transTotal   Int
+  subtotal     Int
+  bbRate       Float    @default(0)
+  bbRefund     Int      @default(0)
+  total        Int
+  rounded      Int
+  totalPerM    Int
+  minVal       Int
+  maxVal       Int
+  createdAt    DateTime @default(now())
+}
+
+model ContractorResponse {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       EstimateRequest @relation(fields: [requestId], references: [id])
+  contractorId  String
+  contractor    User     @relation(fields: [contractorId], references: [id])
+  responseLayer Int
+  submittedPerM Int?
+  workDays      Int?
+  memo          String?
+  deviationPct  Float?
+  specChanged   Boolean  @default(false)
+  status        String   @default("DRAFT")
+  submittedAt   DateTime?
+  createdAt     DateTime @default(now())
+  specChangeLogs SpecChangeLog[]
+}
+
+model SpecChangeLog {
+  id             String   @id @default(uuid())
+  responseId     String
+  response       ContractorResponse @relation(fields: [responseId], references: [id])
+  fieldName      String
+  engineValue    String
+  submittedValue String
+  impactAmount   Int?
+  createdAt      DateTime @default(now())
+}
+
+model ComparisonResult {
+  id            String   @id @default(uuid())
+  requestId     String
+  request       EstimateRequest @relation(fields: [requestId], references: [id])
+  responseId    String   @unique
+  enginePerM    Int
+  submittedPerM Int
+  deviationPct  Float
+  bbCheckFlag   String   @default("NORMAL")
+  specChanged   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model PriceTrend {
+  panelType  String   @id
+  trend      String
+  changePct  Float
+  updatedAt  DateTime @default(now())
+  source     String   @default("MANUAL")
+}

@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'IBM Plex Sans KR', 'IBM Plex Mono', system-ui, sans-serif;
+    background-color: #070C12;
+    color: #F1F5F9;
+  }
+
+  body {
+    @apply bg-axis-bg text-slate-100 antialiased;
+    min-height: 100vh;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0C1520;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+@layer components {
+  .axis-card {
+    @apply bg-axis-surface border border-axis-border rounded-lg p-6;
+  }
+
+  .axis-btn-primary {
+    @apply bg-axis-teal text-axis-bg font-semibold px-6 py-3 rounded-lg
+           hover:brightness-110 transition-all duration-200
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .axis-btn-secondary {
+    @apply border border-axis-teal text-axis-teal font-semibold px-6 py-3 rounded-lg
+           hover:bg-axis-teal/10 transition-all duration-200;
+  }
+
+  .axis-input {
+    @apply bg-axis-elevated border border-axis-border rounded-lg px-4 py-3
+           text-slate-100 placeholder-slate-500
+           focus:outline-none focus:border-axis-teal focus:ring-1 focus:ring-axis-teal/50
+           transition-colors duration-200;
+  }
+
+  .axis-label {
+    @apply block text-sm font-medium text-slate-400 mb-2;
+  }
+}
