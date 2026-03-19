@@ -1110,6 +1110,10 @@ app.post('/api/quotes/:id/kakao', {
   return reply.status(201).send({ message: '카카오톡 전송이 기록되었습니다.', send, linkUrl });
 });
 
+// ── Platform Routes Plugin ─────────────────────────────────
+const platformRoutes = require('./platformRoutes').default;
+app.register(platformRoutes);
+
 // ═════════════════════════════════════════════════════════════
 // START SERVER
 // ═════════════════════════════════════════════════════════════
