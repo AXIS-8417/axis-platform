@@ -145,7 +145,7 @@ export default function Matrix() {
               <span key={i} className="text-[12px] bg-[#f1f5f9] text-[#334155] px-2 py-0.5 rounded-full font-medium">{t}</span>
             ))}
             <span className="text-[11px] font-semibold bg-[#f3f4f6] text-[#6b7280] px-2 py-0.5 rounded-full">DEFAULT</span>
-            <span className="text-[12px] bg-[#f1f5f9] text-[#94a3b8] px-2 py-0.5 rounded-full">경간 3.0M · 지주 1:1</span>
+            <span className="text-[12px] bg-[#f1f5f9] text-[#94a3b8] px-2 py-0.5 rounded-full">경간 3.0M · 지주 1:1{(store.dustH && store.dustH > 0) ? ` · 분진망 H:${store.dustH}M` : ''}</span>
           </div>
           <div className="text-[12px] text-[#64748b]">
             규모 보정: <strong className="text-[#2563eb]">×{sf.toFixed(2)}</strong>
@@ -269,7 +269,7 @@ export default function Matrix() {
             </div>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2.5">
-                <div className="text-[11px] text-[#94a3b8]">총 예상 (도어 제외)</div>
+                <div className="text-[11px] text-[#94a3b8]">총 예상 ({gate !== '없음' ? '도어 포함' : '도어 제외'})</div>
                 <div className="font-bold text-[15px] text-[#0f172a] font-mono">{fmt(sr.rounded || sr.totalPerM * len)}원</div>
               </div>
               <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2.5">

@@ -112,7 +112,7 @@ export default function Premium() {
           <div>BB차감: -{fmt(r?.bbRefund)}원 ({((r?.bbRate||0)*100).toFixed(1)}%)</div>
           <div>범위: {fmt(r?.minVal)} ~ {fmt(r?.maxVal)}</div>
         </div>
-        <div className="mt-3 text-xs text-[#94a3b8]">경간 {d?.span}M · 횡대 {d?.hwangdae}단 · 기초파이프 {d?.gichoLength ?? '앵커볼트'}M</div>
+        <div className="mt-3 text-xs text-[#94a3b8]">경간 {d?.span}M · 횡대 {d?.hwangdae}단 · 기초파이프 {d?.gichoLength ?? '앵커볼트'}M{store.dustH && store.dustH > 0 ? ` · 분진망 ${store.dustH}M` : ' · 분진망 없음'}</div>
       </div>
     );
   };
@@ -125,7 +125,7 @@ export default function Premium() {
           <span className="text-[10px] bg-[#f0f9ff] text-[#0369a1] px-2 py-0.5 rounded font-semibold">STEP 2+</span>
           <span className="text-[15px] font-bold text-[#0f172a]">정밀견적</span>
         </div>
-        <p className="text-sm text-[#64748b] mb-4">{panel} · {h}M · {len}M · {region}</p>
+        <p className="text-sm text-[#64748b] mb-4">{panel} · H{h}M · L{len}M · {floor} · {region}{(store.dustH && store.dustH > 0) ? ` · 분진망 H:${store.dustH}M` : ''}</p>
         <Stepper step={2} />
 
         {/* BB 슬라이더 */}
@@ -151,7 +151,7 @@ export default function Premium() {
             <table className="w-full text-sm">
               <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">표준형</th></tr></thead>
               <tbody>
-                {[['자재비/M',practical.result.matM,standard.result.matM],['노무비/M',practical.result.labM,standard.result.labM],['자재 합계',practical.result.matTotal,standard.result.matTotal],['노무 합계',practical.result.labTotal,standard.result.labTotal],['장비/기초',practical.result.eqpTotal+practical.result.foundTotal,standard.result.eqpTotal+standard.result.foundTotal],['운반비',practical.result.transTotal,standard.result.transTotal],['BB차감',-practical.result.bbRefund,-standard.result.bbRefund],['총액',practical.result.rounded,standard.result.rounded]].map(([label,p,s],i)=>(
+                {[['자재비/M',practical.result.matM,standard.result.matM],['노무비/M',practical.result.labM,standard.result.labM],['자재 합계',practical.result.matTotal,standard.result.matTotal],['노무 합계',practical.result.labTotal,standard.result.labTotal],['장비/기초',practical.result.eqpTotal||0,standard.result.eqpTotal||0],['운반비',practical.result.transTotal,standard.result.transTotal],['BB차감',-practical.result.bbRefund,-standard.result.bbRefund],['총액',practical.result.rounded,standard.result.rounded]].map(([label,p,s],i)=>(
                   <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
                 ))}
               </tbody>
