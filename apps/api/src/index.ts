@@ -729,6 +729,152 @@ app.post('/api/admin/trends', {
 });
 
 // ═════════════════════════════════════════════════════════════
+// QUOTE RECORD ROUTES (유료회원 견적 기록)
+// ═════════════════════════════════════════════════════════════
+
+// ── Save Quote Record ────────────────────────────────────────
+app.post('/api/quotes', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const payload = request.user as any;
+  const body = request.body as any;
+
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setFullYear(expiresAt.getFullYear() + 5);
+
+  const record = await prisma.quoteRecord.create({
+    data: {
+      userId: payload.id,
+      year: body.year || now.getFullYear(),
+      month: body.month || (now.getMonth() + 1),
+      input: body.input,
+      result: body.result,
+      bom: body.bom,
+      designComments: body.designComments || [],
+      envResult: body.envResult || null,
+      strResult: body.strResult || null,
+      expiresAt,
+    },
+  });
+
+  return reply.status(201).send(record);
+});
+
+// ── List Quote Records (년도/월 필터) ─────────────────────────
+app.get('/api/quotes', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest) => {
+  const payload = request.user as any;
+  const query = request.query as any;
+
+  const where: any = { userId: payload.id };
+  if (query.year) where.year = Number(query.year);
+  if (query.month) where.month = Number(query.month);
+  if (query.panel) where.input = { path: ['panel'], equals: query.panel };
+
+  const records = await prisma.quoteRecord.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: Number(query.limit) || 50,
+    skip: Number(query.offset) || 0,
+    include: { sends: true },
+  });
+
+  const total = await prisma.quoteRecord.count({ where });
+
+  return { records, total };
+});
+
+// ── Get Quote Record by ID ───────────────────────────────────
+app.get('/api/quotes/:id', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+  const payload = request.user as any;
+
+  const record = await prisma.quoteRecord.findUnique({
+    where: { id },
+    include: { sends: true },
+  });
+
+  if (!record) {
+    return reply.status(404).send({ error: '견적 기록을 찾을 수 없습니다.' });
+  }
+  if (record.userId !== payload.id && payload.role !== 'ADMIN') {
+    return reply.status(403).send({ error: '접근 권한이 없습니다.' });
+  }
+
+  return record;
+});
+
+// ── Delete Quote Record ──────────────────────────────────────
+app.delete('/api/quotes/:id', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+  const payload = request.user as any;
+
+  const record = await prisma.quoteRecord.findUnique({ where: { id } });
+  if (!record) {
+    return reply.status(404).send({ error: '견적 기록을 찾을 수 없습니다.' });
+  }
+  if (record.userId !== payload.id && payload.role !== 'ADMIN') {
+    return reply.status(403).send({ error: '삭제 권한이 없습니다.' });
+  }
+
+  await prisma.quoteSend.deleteMany({ where: { quoteId: id } });
+  await prisma.quoteRecord.delete({ where: { id } });
+
+  return { message: '견적 기록이 삭제되었습니다.' };
+});
+
+// ── Create Share Link ────────────────────────────────────────
+app.post('/api/quotes/:id/share', {
+  preHandler: [app.authenticate],
+}, async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+  const payload = request.user as any;
+
+  const record = await prisma.quoteRecord.findUnique({ where: { id } });
+  if (!record || record.userId !== payload.id) {
+    return reply.status(404).send({ error: '견적 기록을 찾을 수 없습니다.' });
+  }
+
+  const linkUrl = `/quotes/view/${id}`;
+
+  const send = await prisma.quoteSend.create({
+    data: {
+      quoteId: id,
+      channel: 'link',
+      linkUrl,
+    },
+  });
+
+  return reply.status(201).send({ linkUrl, send });
+});
+
+// ── Public View (shared link) ────────────────────────────────
+app.get('/api/quotes/view/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as any;
+
+  const record = await prisma.quoteRecord.findUnique({
+    where: { id },
+    select: {
+      id: true, createdAt: true, year: true, month: true,
+      input: true, result: true, bom: true,
+      designComments: true, envResult: true, strResult: true,
+    },
+  });
+
+  if (!record) {
+    return reply.status(404).send({ error: '견적 기록을 찾을 수 없습니다.' });
+  }
+
+  return record;
+});
+
+// ═════════════════════════════════════════════════════════════
 // START SERVER
 // ═════════════════════════════════════════════════════════════
 

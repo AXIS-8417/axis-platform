@@ -18,6 +18,8 @@ model User {
   createdAt   DateTime @default(now())
   requests    EstimateRequest[]
   responses   ContractorResponse[]
+  quoteRecords  QuoteRecord[]
+  mergedQuotes  MergedQuote[]
 }
 
 enum Role {
@@ -131,4 +133,50 @@ model PriceTrend {
   changePct  Float
   updatedAt  DateTime @default(now())
   source     String   @default("MANUAL")
+}
+
+// ══════════════════════════════════════════
+// 유료회원 견적 기록
+// ══════════════════════════════════════════
+
+model QuoteRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  year      Int
+  month     Int
+
+  input          Json
+  result         Json
+  bom            Json
+  designComments String[]
+  envResult      Json?
+  strResult      Json?
+
+  expiresAt DateTime
+
+  sends QuoteSend[]
+
+  @@index([userId, year, month])
+}
+
+model QuoteSend {
+  id        String   @id @default(uuid())
+  quoteId   String
+  quote     QuoteRecord @relation(fields: [quoteId], references: [id])
+  sentAt    DateTime @default(now())
+  channel   String
+  recipient String?
+  linkUrl   String?
+}
+
+model MergedQuote {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  sourceIds   String[]
+  mergedResult Json
+  expiresAt   DateTime
 }
