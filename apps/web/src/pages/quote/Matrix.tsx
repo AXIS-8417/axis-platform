@@ -495,34 +495,40 @@ export default function Matrix() {
         </div>
         {/* 견적 저장 */}
         {selected && sr && (
-          <button
-            onClick={async () => {
-              try {
-                const dustN = store.dustH ? (store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4) : 0;
-                const matPerM = Math.floor((sr.matTotal - (sr.gateTotal||0)) / len / 100) * 100;
-                const labPerM = Math.floor(sr.labTotal / len / 100) * 100;
-                const expPerM = Math.floor((sr.eqpTotal + sr.transTotal) / len / 100) * 100;
-                await api.post('/api/quotes', {
-                  input: { panel, height: h, length: len, span: design.span||3, contract: selected.contract==='BB'?'바이백':'판매', months: bbMonths, asset: selected.asset, dustH: store.dustH||0, dustN, location: store.address||'', door: gate !== '없음' ? gate : null },
-                  result: { matTotal: sr.matTotal, labTotal: sr.labTotal, equipTotal: sr.eqpTotal, transTotal: sr.transTotal, doorTotal: sr.gateTotal||0, grandTotal: sr.subtotal, bbTotal: -(sr.bbRefund||0), finalTotal: sr.total, matPerM, labPerM, expPerM, totalPerM: matPerM+labPerM+expPerM },
-                  bom: sr.bom ? Object.entries(sr.bom).map(([k,v]) => ({name:k,...(v as any)})) : [],
-                  designComments: [
-                    `판넬: ${panel} H${h}M / 총연장 ${len}M`,
-                    `경간: ${design.span||3}M`,
-                    `주주파이프: ${sr.bom?.juju||''}본`,
-                    `횡대파이프: ${design.hwangdae||''}단`,
-                    dustN > 0 ? `분진망: 있음 (H:${store.dustH}M, ${dustN}단)` : '분진망: 없음',
-                    `기초: ${design.found||'기초파이프'}`,
-                    `자산구분: ${selected.asset}`,
-                    selected.contract==='BB' ? `계약: 바이백 ${bbMonths}개월` : '계약: 일반판매',
-                  ],
-                });
-                alert('견적이 저장되었습니다.');
-              } catch { alert('저장에 실패했습니다. 로그인이 필요합니다.'); }
-            }}
-            className="w-full py-2 rounded-lg border border-[#334155] text-[#94A3B8] text-sm hover:bg-[#111B2A] mb-3">
-            💾 이 견적 저장하기
-          </button>
+          <div className="mb-3">
+            <input type="text" id="projectNameInput" placeholder="공사명 입력 (선택)"
+              className="w-full px-3 py-2 rounded-lg border border-[#e2e8f0] text-sm mb-2 text-[#0f172a]" />
+            <button
+              onClick={async () => {
+                try {
+                  const projectName = (document.getElementById('projectNameInput') as HTMLInputElement)?.value || '';
+                  const dustN = store.dustH ? (store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4) : 0;
+                  const matPerM = Math.floor((sr.matTotal - (sr.gateTotal||0)) / len / 100) * 100;
+                  const labPerM = Math.floor(sr.labTotal / len / 100) * 100;
+                  const expPerM = Math.floor((sr.eqpTotal + sr.transTotal) / len / 100) * 100;
+                  await api.post('/api/quotes', {
+                    projectName: projectName || undefined,
+                    input: { panel, height: h, length: len, span: design.span||3, contract: selected.contract==='BB'?'바이백':'판매', months: bbMonths, asset: selected.asset, dustH: store.dustH||0, dustN, location: store.address||'', door: gate !== '없음' ? gate : null },
+                    result: { matTotal: sr.matTotal, labTotal: sr.labTotal, equipTotal: sr.eqpTotal, transTotal: sr.transTotal, doorTotal: sr.gateTotal||0, grandTotal: sr.subtotal, bbTotal: -(sr.bbRefund||0), finalTotal: sr.total, matPerM, labPerM, expPerM, totalPerM: matPerM+labPerM+expPerM },
+                    bom: sr.bom ? Object.entries(sr.bom).map(([k,v]) => ({name:k,...(v as any)})) : [],
+                    designComments: [
+                      `판넬: ${panel} H${h}M / 총연장 ${len}M`,
+                      `경간: ${design.span||3}M`,
+                      `주주파이프: ${sr.bom?.juju||''}본`,
+                      `횡대파이프: ${design.hwangdae||''}단`,
+                      dustN > 0 ? `분진망: 있음 (H:${store.dustH}M, ${dustN}단)` : '분진망: 없음',
+                      `기초: ${design.found||'기초파이프'}`,
+                      `자산구분: ${selected.asset}`,
+                      selected.contract==='BB' ? `계약: 바이백 ${bbMonths}개월` : '계약: 일반판매',
+                    ],
+                  });
+                  alert('견적이 저장되었습니다.');
+                } catch { alert('저장에 실패했습니다. 로그인이 필요합니다.'); }
+              }}
+              className="w-full py-2 rounded-lg border border-[#334155] text-[#94A3B8] text-sm hover:bg-[#111B2A]">
+              💾 이 견적 저장하기
+            </button>
+          </div>
         )}
 
         {/* 면책 */}

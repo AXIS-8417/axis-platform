@@ -741,13 +741,14 @@ app.post('/api/quotes', {
 
   const now = new Date();
   const expiresAt = new Date(now);
-  expiresAt.setFullYear(expiresAt.getFullYear() + 5);
+  expiresAt.setMonth(expiresAt.getMonth() + 12); // MVP: 12개월 보관
 
   const record = await prisma.quoteRecord.create({
     data: {
       userId: payload.id,
       year: body.year || now.getFullYear(),
       month: body.month || (now.getMonth() + 1),
+      projectName: body.projectName || null,
       input: body.input,
       result: body.result,
       bom: body.bom,
@@ -772,6 +773,7 @@ app.get('/api/quotes', {
   if (query.year) where.year = Number(query.year);
   if (query.month) where.month = Number(query.month);
   if (query.panel) where.input = { path: ['panel'], equals: query.panel };
+  if (query.projectName) where.projectName = { contains: query.projectName, mode: 'insensitive' };
 
   const records = await prisma.quoteRecord.findMany({
     where,
@@ -861,7 +863,7 @@ app.get('/api/quotes/view/:id', async (request: FastifyRequest, reply: FastifyRe
   const record = await prisma.quoteRecord.findUnique({
     where: { id },
     select: {
-      id: true, createdAt: true, year: true, month: true,
+      id: true, createdAt: true, year: true, month: true, projectName: true,
       input: true, result: true, bom: true,
       designComments: true, envResult: true, strResult: true,
     },

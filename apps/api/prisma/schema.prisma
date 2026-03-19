@@ -140,12 +140,13 @@ model PriceTrend {
 // ══════════════════════════════════════════
 
 model QuoteRecord {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  year      Int
-  month     Int
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  year        Int
+  month       Int
+  projectName String?
 
   input          Json
   result         Json
@@ -159,6 +160,7 @@ model QuoteRecord {
   sends QuoteSend[]
 
   @@index([userId, year, month])
+  @@index([userId, projectName])
 }
 
 model QuoteSend {

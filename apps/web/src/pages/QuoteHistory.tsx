@@ -57,6 +57,7 @@ export default function QuoteHistory() {
   const [month, setMonth] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchName, setSearchName] = useState('');
 
   const fetchRecords = async () => {
     if (!token) return;
@@ -64,6 +65,7 @@ export default function QuoteHistory() {
     try {
       const params: any = { year };
       if (month) params.month = month;
+      if (searchName.trim()) params.projectName = searchName.trim();
       const { data } = await api.get('/api/quotes', { params });
       setRecords(data.records);
       setTotal(data.total);
@@ -75,6 +77,17 @@ export default function QuoteHistory() {
   };
 
   useEffect(() => { fetchRecords(); }, [year, month, token]);
+
+  const handleSearch = () => { fetchRecords(); };
+
+  const handleShare = async (quoteId: string) => {
+    try {
+      const { data } = await api.post(`/api/quotes/${quoteId}/share`);
+      const url = `${window.location.origin}/quotes/view/${quoteId}`;
+      await navigator.clipboard.writeText(url);
+      alert(`링크가 복사되었습니다:\n${url}`);
+    } catch { alert('링크 생성에 실패했습니다.'); }
+  };
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -134,7 +147,12 @@ export default function QuoteHistory() {
 
       <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Filters */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
+          <input type="text" value={searchName} onChange={e => setSearchName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            placeholder="공사명 검색..."
+            style={{ background: '#111B2A', border: '1px solid #334155', color: '#F1F5F9' }}
+            className="px-3 py-2 rounded-lg text-sm w-48" />
           <select value={year} onChange={e => setYear(Number(e.target.value))}
             style={{ background: '#111B2A', border: '1px solid #334155', color: '#F1F5F9' }}
             className="px-3 py-2 rounded-lg text-sm">
@@ -146,6 +164,8 @@ export default function QuoteHistory() {
             <option value="">전체 월</option>
             {months.map(m => <option key={m} value={m}>{m}월</option>)}
           </select>
+          <button onClick={handleSearch} style={{ background: '#00D9CC', color: '#070C12' }}
+            className="px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90">검색</button>
           <span style={{ color: '#64748B' }} className="text-sm ml-2">총 {total}건</span>
         </div>
 
@@ -189,6 +209,9 @@ export default function QuoteHistory() {
                     <span className="text-sm" style={{ color: '#64748B' }}>
                       {new Date(r.createdAt).toLocaleDateString('ko-KR')}
                     </span>
+                    {(r as any).projectName && (
+                      <span className="text-sm font-semibold" style={{ color: '#F0A500' }}>{(r as any).projectName}</span>
+                    )}
                     <span className="text-sm font-medium truncate">
                       {panelLabel(r.input.panel)} H{r.input.height}M {r.input.length}M
                       {r.input.contract === '바이백' ? ` BB${r.input.months}` : ' 판매'}
@@ -265,7 +288,9 @@ export default function QuoteHistory() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 pt-2" style={{ borderTop: '1px solid #1E293B' }}>
+                    <div className="flex gap-3 pt-2" style={{ borderTop: '1px solid #1E293B' }}>
+                      <button onClick={() => handleShare(r.id)}
+                        style={{ color: '#00D9CC' }} className="text-sm hover:underline">🔗 링크 공유</button>
                       <button onClick={() => handleDelete(r.id)}
                         style={{ color: '#EF4444' }} className="text-sm hover:underline">삭제</button>
                     </div>
