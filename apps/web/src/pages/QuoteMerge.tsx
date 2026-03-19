@@ -44,7 +44,7 @@ export default function QuoteMerge() {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-8">
-        {loading && <div className="text-center py-20" style={{ color: '#00D9CC' }} className="font-mono animate-pulse">합산 계산 중...</div>}
+        {loading && <div className="text-center py-20 font-mono animate-pulse" style={{ color: '#00D9CC' }}>합산 계산 중...</div>}
         {error && <div className="text-center py-20" style={{ color: '#EF4444' }}>{error}</div>}
 
         {r && (
