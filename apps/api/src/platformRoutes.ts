@@ -1075,6 +1075,82 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ message: '서명 링크가 전송되었습니다.', contract: updated, linkUrl });
   });
 
+  // --- 9b. 대행자기기 서명 (sign-proxy) ---
+  app.post('/api/platform/contracts/:id/sign-proxy', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    const u = getUser(request);
+
+    if (u.role === 'GAP') {
+      return reply.status(403).send({ error: '갑 역할은 근로계약 정보를 조회할 수 없습니다.' });
+    }
+
+    const body = request.body as any;
+    const contract = await prisma.laborContract.findUnique({ where: { contractId: id } });
+    if (!contract) return reply.status(404).send({ error: '근로계약을 찾을 수 없습니다.' });
+
+    if (contract.sealId) {
+      return reply.status(403).send({ error: '봉인된 레코드는 수정할 수 없습니다.' });
+    }
+
+    if (!body.proxyUserId || !body.proxyRole) {
+      return reply.status(400).send({ error: 'proxyUserId와 proxyRole은 필수입니다.' });
+    }
+
+    const updated = await prisma.laborContract.update({
+      where: { contractId: id },
+      data: {
+        signRoute: '대행자기기',
+        signMethod: '대행',
+        proxyUserId: body.proxyUserId,
+        proxyRole: body.proxyRole,
+        workerSignedAt: new Date(),
+        workerSignMethod: '대행자기기',
+        authMethod: body.authMethod || '전화번호',
+        status: '서명완료',
+      },
+    });
+
+    return reply.send({ message: '대행자 서명이 완료되었습니다.', contract: updated });
+  });
+
+  // --- 9c. 비회원→정회원 전환 (link-member) ---
+  app.patch('/api/platform/contracts/:id/link-member', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+    const u = getUser(request);
+
+    if (u.role === 'GAP') {
+      return reply.status(403).send({ error: '갑 역할은 근로계약 정보를 조회할 수 없습니다.' });
+    }
+
+    const body = request.body as any;
+    const contract = await prisma.laborContract.findUnique({ where: { contractId: id } });
+    if (!contract) return reply.status(404).send({ error: '근로계약을 찾을 수 없습니다.' });
+
+    if (contract.sealId) {
+      return reply.status(403).send({ error: '봉인된 레코드는 수정할 수 없습니다.' });
+    }
+
+    if (!body.workerUserId) {
+      return reply.status(400).send({ error: '연결할 정회원 workerUserId가 필요합니다.' });
+    }
+
+    // 정회원 사용자 존재 확인
+    const member = await prisma.platformUser.findUnique({ where: { userId: body.workerUserId } });
+    if (!member) return reply.status(404).send({ error: '해당 정회원을 찾을 수 없습니다.' });
+
+    const updated = await prisma.laborContract.update({
+      where: { contractId: id },
+      data: {
+        workerUserId: body.workerUserId,
+        workerName: member.name,
+        signRoute: '정회원전환',
+        authMethod: '정회원',
+      },
+    });
+
+    return reply.send({ message: '비회원→정회원 전환이 완료되었습니다.', contract: updated });
+  });
+
   // ===========================================================
   // 10. EQUIPMENT VALIDATION (PART 263)
   // ===========================================================
@@ -1423,5 +1499,267 @@ export default async function platformRoutes(app: FastifyInstance) {
     const items = await prisma.auditLog.findMany({ where, ...paginate(query), orderBy: { createdAt: 'desc' } });
     const total = await prisma.auditLog.count({ where });
     return reply.send({ items, total });
+  });
+
+  // ===========================================================
+  // 15. GATE MANAGEMENT (게이트 관리)
+  // ===========================================================
+
+  // 게이트 마스터 조회
+  app.get('/api/platform/gates', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    const where: any = {};
+    if (query.siteId) where.siteId = query.siteId;
+    if (query.q) {
+      where.OR = [
+        { gateName: { contains: query.q } },
+        { gateType: { contains: query.q } },
+      ];
+    }
+    const items = await prisma.gateMaster.findMany({ where, ...paginate(query), orderBy: { createdAt: 'desc' } });
+    const total = await prisma.gateMaster.count({ where });
+    return reply.send({ items, total });
+  });
+
+  // 게이트 마스터 생성
+  app.post('/api/platform/gates', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const gate = await prisma.gateMaster.create({
+      data: {
+        siteId: body.siteId,
+        gateName: body.gateName,
+        gateType: body.gateType,
+        description: body.description,
+      },
+    });
+    return reply.status(201).send(gate);
+  });
+
+  // 을 게이트원장 등록 (단독잠금)
+  app.post('/api/platform/gates/eul-events', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const u = getUser(request);
+    const body = request.body as any;
+
+    const eventId = genId('GE');
+    const event = await prisma.eulGateEvent.create({
+      data: {
+        eventId,
+        gateId: body.gateId,
+        siteId: body.siteId,
+        workId: body.workId,
+        eulPartyId: body.eulPartyId || u.partyId,
+        eventType: body.eventType,
+        eventDate: body.eventDate ? new Date(body.eventDate) : new Date(),
+        quantity: body.quantity ? Number(body.quantity) : undefined,
+        unit: body.unit,
+        description: body.description,
+        note: body.note,
+      },
+    });
+
+    // 단독잠금 자동 생성
+    const sealId = genId('SEAL');
+    await prisma.sealRecord.create({
+      data: {
+        sealId,
+        targetType: 'EulGateEvent',
+        targetId: eventId,
+        sealType: 'SINGLE',
+        sealAxis: '게이트',
+        sealParty: u.partyId,
+        sealedAt: new Date(),
+        sealReason: '을 게이트원장 단독잠금',
+        sealTargetType: 'EulGateEvent',
+        sealTargetId: eventId,
+      },
+    });
+
+    // sealId 업데이트
+    const updated = await prisma.eulGateEvent.update({
+      where: { eventId },
+      data: { sealId },
+    });
+
+    return reply.status(201).send({ event: updated, sealId });
+  });
+
+  // 병 게이트원장 등록 (상호잠금)
+  app.post('/api/platform/gates/byeong-events', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const u = getUser(request);
+    const body = request.body as any;
+
+    const eventId = genId('GB');
+    const event = await prisma.byeongGateEvent.create({
+      data: {
+        eventId,
+        gateId: body.gateId,
+        siteId: body.siteId,
+        workId: body.workId,
+        byeongPartyId: body.byeongPartyId || u.partyId,
+        eventType: body.eventType,
+        eventDate: body.eventDate ? new Date(body.eventDate) : new Date(),
+        quantity: body.quantity ? Number(body.quantity) : undefined,
+        unit: body.unit,
+        description: body.description,
+        note: body.note,
+      },
+    });
+
+    // 상호잠금 — 을 확인 대기 상태로 생성
+    const sealId = genId('SEAL');
+    await prisma.sealRecord.create({
+      data: {
+        sealId,
+        targetType: 'ByeongGateEvent',
+        targetId: eventId,
+        sealType: 'MUTUAL',
+        sealAxis: '게이트',
+        sealParty: u.partyId,
+        sealedAt: new Date(),
+        counterConfirmed: false,
+        sealReason: '병 게이트원장 상호잠금 (을 확인 대기)',
+        sealTargetType: 'ByeongGateEvent',
+        sealTargetId: eventId,
+      },
+    });
+
+    const updated = await prisma.byeongGateEvent.update({
+      where: { eventId },
+      data: { sealId },
+    });
+
+    return reply.status(201).send({ event: updated, sealId, awaitingCounterConfirm: true });
+  });
+
+  // 게이트 정합대조 (을 원장 vs 병 원장 1:1 매핑)
+  app.get('/api/platform/gates/reconciliation', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+
+    if (!query.siteId) {
+      return reply.status(400).send({ error: 'siteId는 필수입니다.' });
+    }
+
+    // 을 원장 조회
+    const eulEvents = await prisma.eulGateEvent.findMany({
+      where: { siteId: query.siteId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // 병 원장 조회
+    const byeongEvents = await prisma.byeongGateEvent.findMany({
+      where: { siteId: query.siteId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // 기존 정합대조 결과
+    const existing = await prisma.gateReconciliation.findMany({
+      where: { siteId: query.siteId },
+      orderBy: { reconDate: 'desc' },
+    });
+
+    // 자동 정합 대조 실행: 같은 gateId + eventType + eventDate 기준 매핑
+    const reconciled: any[] = [];
+    const unmatchedEul: any[] = [];
+    const unmatchedByeong = [...byeongEvents];
+
+    for (const eul of eulEvents) {
+      const matchIdx = unmatchedByeong.findIndex(
+        (b) => b.gateId === eul.gateId && b.eventType === eul.eventType
+      );
+      if (matchIdx >= 0) {
+        const byeong = unmatchedByeong.splice(matchIdx, 1)[0];
+        const diff = (eul.quantity || 0) - (byeong.quantity || 0);
+        reconciled.push({
+          eulEventId: eul.eventId,
+          byeongEventId: byeong.eventId,
+          gateId: eul.gateId,
+          eulQty: eul.quantity,
+          byeongQty: byeong.quantity,
+          diff,
+          matchStatus: diff === 0 ? '일치' : '불일치',
+        });
+      } else {
+        unmatchedEul.push({ ...eul, matchStatus: '미매핑' });
+      }
+    }
+
+    return reply.send({
+      reconciled,
+      unmatchedEul,
+      unmatchedByeong: unmatchedByeong.map((b) => ({ ...b, matchStatus: '미매핑' })),
+      existing,
+      summary: {
+        totalEul: eulEvents.length,
+        totalByeong: byeongEvents.length,
+        matched: reconciled.length,
+        matchRate: eulEvents.length > 0 ? Math.round((reconciled.length / eulEvents.length) * 100) : 0,
+      },
+    });
+  });
+
+  // ===========================================================
+  // 16. EVIDENCE PACKAGE (증빙패키지)
+  // ===========================================================
+
+  // 증빙패키지 조회 — 개별 레코드가 아닌 패키지 단위만 제공 (절대 준수 규칙 7번)
+  app.get('/api/platform/evidence-packages/:id', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as any;
+
+    const pkg = await prisma.evidencePackage.findUnique({ where: { packageId: id } });
+    if (!pkg) return reply.status(404).send({ error: '증빙패키지를 찾을 수 없습니다.' });
+
+    // 패키지에 포함된 각 증빙 레코드를 조회
+    const records: any[] = [];
+    for (const targetId of (pkg.targetIds || [])) {
+      // 다양한 타입에서 검색 시도
+      const report = await prisma.constructionReport.findUnique({ where: { reportId: targetId } });
+      if (report) { records.push({ type: 'ConstructionReport', data: report }); continue; }
+
+      const seal = await prisma.sealRecord.findUnique({ where: { sealId: targetId } });
+      if (seal) { records.push({ type: 'SealRecord', data: seal }); continue; }
+
+      const safety = await prisma.safetyCheck.findUnique({ where: { checkId: targetId } });
+      if (safety) { records.push({ type: 'SafetyCheck', data: safety }); continue; }
+
+      const billing = await prisma.billing.findUnique({ where: { billingId: targetId } });
+      if (billing) { records.push({ type: 'Billing', data: billing }); continue; }
+
+      const remicon = await prisma.remiconDelivery.findUnique({ where: { deliveryId: targetId } });
+      if (remicon) { records.push({ type: 'RemiconDelivery', data: remicon }); continue; }
+
+      records.push({ type: 'UNKNOWN', targetId, data: null });
+    }
+
+    return reply.send({
+      package: pkg,
+      records,
+      recordCount: records.length,
+      notice: '증빙패키지는 삭제·선별 불가. 패키지 단위 전체만 제공됩니다.',
+    });
+  });
+
+  // 증빙패키지 생성
+  app.post('/api/platform/evidence-packages', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const u = getUser(request);
+    const body = request.body as any;
+
+    if (!body.targetIds || !Array.isArray(body.targetIds) || body.targetIds.length === 0) {
+      return reply.status(400).send({ error: 'targetIds 배열은 필수이며 1개 이상이어야 합니다.' });
+    }
+
+    const pkg = await prisma.evidencePackage.create({
+      data: {
+        packageId: genId('EVPKG'),
+        siteId: body.siteId,
+        workId: body.workId,
+        packageType: body.packageType,
+        targetIds: body.targetIds,
+        createdBy: u.id || u.email,
+        createdRole: u.role,
+        note: body.note,
+      },
+    });
+
+    return reply.status(201).send(pkg);
   });
 }
