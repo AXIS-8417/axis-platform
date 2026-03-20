@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
-const MENUS: Record<string, { label: string; path: string }[]> = {
+const MENUS: Record<string, { label: string; path: string; section?: string }[]> = {
   갑: [
     { label: '홈', path: '/platform/gap' },
     { label: '현장관리', path: '/platform/gap/sites' },
@@ -10,6 +10,9 @@ const MENUS: Record<string, { label: string; path: string }[]> = {
     { label: '서류조회', path: '/platform/gap/documents' },
     { label: '청구·결제', path: '/platform/gap/billing' },
     { label: '설계변경', path: '/platform/gap/design-change' },
+    { label: '───', path: '', section: 'divider' },
+    { label: '견적엔진', path: '/quote/new', section: 'engine' },
+    { label: '견적기록', path: '/quotes', section: 'engine' },
   ],
   을: [
     { label: '홈', path: '/platform/eul' },
@@ -20,6 +23,10 @@ const MENUS: Record<string, { label: string; path: string }[]> = {
     { label: '건설기계', path: '/platform/eul/equipment' },
     { label: '간편서명', path: '/platform/eul/contracts' },
     { label: '레미콘', path: '/platform/eul/remicon' },
+    { label: '───', path: '', section: 'divider' },
+    { label: '견적엔진', path: '/quote/new', section: 'engine' },
+    { label: '견적기록', path: '/quotes', section: 'engine' },
+    { label: '견적응답', path: '/contractor/requests', section: 'engine' },
   ],
   병: [
     { label: '홈', path: '/platform/byeong' },
@@ -47,12 +54,14 @@ export default function PlatformLayout({ role, children }: { role: string; child
           <div className="mt-2 inline-block px-2 py-0.5 rounded text-xs font-bold" style={{ background: color + '20', color, border: `1px solid ${color}` }}>{role}</div>
         </div>
         <nav className="flex-1 px-3 space-y-1">
-          {menus.map(m => {
+          {menus.map((m, i) => {
+            if (m.section === 'divider') return <div key={i} className="my-2" style={{ borderTop: '1px solid #1E293B' }} />;
             const active = loc.pathname === m.path;
+            const isEngine = m.section === 'engine';
             return (
-              <Link key={m.path} to={m.path} className="block px-3 py-2 rounded-lg text-sm transition-colors"
-                style={{ background: active ? color + '15' : 'transparent', color: active ? color : '#94A3B8', borderLeft: active ? `3px solid ${color}` : '3px solid transparent' }}>
-                {m.label}
+              <Link key={m.path || i} to={m.path} className="block px-3 py-2 rounded-lg text-sm transition-colors"
+                style={{ background: active ? color + '15' : 'transparent', color: active ? color : isEngine ? '#64748B' : '#94A3B8', borderLeft: active ? `3px solid ${color}` : '3px solid transparent', fontSize: isEngine ? '12px' : undefined }}>
+                {isEngine ? '📐 ' : ''}{m.label}
               </Link>
             );
           })}
