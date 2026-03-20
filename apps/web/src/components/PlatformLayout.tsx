@@ -11,6 +11,7 @@ const MENUS: Record<string, { label: string; path: string; section?: string }[]>
     { label: '청구·결제', path: '/platform/gap/billing' },
     { label: '설계변경', path: '/platform/gap/design-change' },
     { label: '───', path: '', section: 'divider' },
+    { label: '회원관리', path: '/platform/members', section: 'engine' },
     { label: '견적엔진', path: '/quote/new', section: 'engine' },
     { label: '견적기록', path: '/quotes', section: 'engine' },
   ],

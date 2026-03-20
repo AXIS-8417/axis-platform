@@ -20,6 +20,8 @@ import QuoteView from './pages/QuoteView';
 import QuoteMerge from './pages/QuoteMerge';
 import PlatformLayout from './components/PlatformLayout';
 import PlatformLogin from './pages/platform/PlatformLogin';
+import PlatformSignup from './pages/platform/PlatformSignup';
+import MemberManage from './pages/platform/MemberManage';
 import GapHome from './pages/platform/gap/GapHome';
 import GapSites from './pages/platform/gap/GapSites';
 import GapWorkRecords from './pages/platform/gap/GapWorkRecords';
@@ -80,6 +82,8 @@ export default function App() {
 
         {/* Platform */}
         <Route path="/platform/login" element={<PlatformLogin />} />
+        <Route path="/platform/signup" element={<PlatformSignup />} />
+        <Route path="/platform/members" element={<PlatformLayout role="갑"><MemberManage /></PlatformLayout>} />
         <Route path="/platform/gap" element={<PlatformLayout role="갑"><GapHome /></PlatformLayout>} />
         <Route path="/platform/gap/sites" element={<PlatformLayout role="갑"><GapSites /></PlatformLayout>} />
         <Route path="/platform/gap/records" element={<PlatformLayout role="갑"><GapWorkRecords /></PlatformLayout>} />

@@ -62,6 +62,10 @@ export default function PlatformLogin() {
           </div>
           <button type="submit" disabled={loading} className="w-full py-3 rounded-lg font-bold text-sm"
             style={{ background: '#00D9CC', color: '#070C12' }}>{loading ? '로그인 중...' : '로그인'}</button>
+          <p className="text-center text-sm pt-3" style={{ color:'#64748B' }}>
+            계정이 없으신가요?{' '}
+            <a href="/platform/signup" style={{ color:'#00D9CC' }} className="hover:underline font-semibold">회원가입 (5단계)</a>
+          </p>
         </form>
       </div>
     </div>
