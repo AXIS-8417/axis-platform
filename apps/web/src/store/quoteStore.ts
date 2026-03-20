@@ -29,6 +29,10 @@ interface QuoteFields {
   height: number;
   floorType: FloorType | null;
   dustH: number;
+  siteSlope: boolean | null;
+  siteCurve: boolean | null;
+  siteAdjacent: boolean | null;
+  siteMultiHeight: boolean;
 }
 
 interface QuoteState extends QuoteFields, DoorFields, SelectionFields {
@@ -51,6 +55,10 @@ const initialState: QuoteFields & DoorFields & SelectionFields & { currentStep: 
   height: 0,
   floorType: null,
   dustH: 0,
+  siteSlope: null,
+  siteCurve: null,
+  siteAdjacent: null,
+  siteMultiHeight: false,
   gateType: '없음',
   doorGrade: '신재',
   doorWidth: 3,

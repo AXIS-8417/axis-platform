@@ -153,6 +153,26 @@ export default function Matrix() {
           </div>
         </div>
 
+        {/* 특수현장 노티스 배너 */}
+        {(store.siteSlope === true || store.siteCurve === true || store.siteAdjacent === true) && (
+          <div className="mb-3 space-y-1">
+            {[store.siteSlope, store.siteCurve, store.siteAdjacent].filter(v => v === true).length >= 2 && (
+              <div className="bg-[#fef2f2] border-l-[3px] border-[#ef4444] rounded-r-lg px-3 py-2 text-xs text-[#991b1b] font-bold">
+                ⚠⚠ 복합 특수 조건 현장 — 엔진 산출값 편차 ±40% 이상 가능. 을 현장 확인 견적 필수.
+              </div>
+            )}
+            {store.siteSlope === true && (
+              <div className="bg-[#fffbeb] border-l-[3px] border-[#f59e0b] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">⚠ 경사지 현장 — M당 +10~40% 추가 가능</div>
+            )}
+            {store.siteCurve === true && (
+              <div className="bg-[#fffbeb] border-l-[3px] border-[#f59e0b] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">⚠ 곡선 구간 — 자재 손율 +5~25% 추가 가능</div>
+            )}
+            {store.siteAdjacent === true && (
+              <div className="bg-[#fffbeb] border-l-[3px] border-[#f59e0b] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">⚠ 인접 구조물 — 장비비 +20~50% 추가 가능</div>
+            )}
+          </div>
+        )}
+
         {/* BB 슬라이더 */}
         <div className="bg-white border border-[#e5e7eb] rounded-xl p-4 mb-3">
           <div className="flex justify-between mb-2 items-center">

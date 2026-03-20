@@ -11,7 +11,7 @@ const STEPS = [
   { id: 3, label: '판넬종류', icon: '🧱' },
   { id: 4, label: '높이', icon: '📐' },
   { id: 5, label: '기초조건', icon: '⛏' },
-  { id: 6, label: '분진망', icon: '◫' },
+  { id: 6, label: '현장+분진망', icon: '📋' },
 ];
 
 const PANEL_OPTIONS: { value: PanelType | 'auto'; label: string; desc: string; icon: string }[] = [
@@ -395,44 +395,143 @@ export default function NewQuote() {
               </div>
             )}
 
-            {/* Q6: 분진망 */}
+            {/* Q6: 분진망 + 현장조건 Q-S1~S3 (한 화면) */}
             {step === 6 && (
-              <div className="space-y-4">
-                <div className="flex gap-2 items-start">
-                  <span className="text-xl">◫</span>
-                  <div>
-                    <h2 className="text-[15px] font-bold text-[#0f172a]">분진망</h2>
-                    <p className="text-xs text-[#64748b]">방음벽 상단에 분진망을 설치하나요?</p>
+              <div className="space-y-6">
+                {/* 분진망 */}
+                <div>
+                  <div className="flex gap-2 items-start mb-3">
+                    <span className="text-xl">◫</span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0f172a]">분진망</h2>
+                      <p className="text-xs text-[#64748b]">방음벽 상단에 분진망을 설치하나요?</p>
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { value: 0, label: '없음', tier: 0 },
-                    { value: 1.0, label: '1.0M', tier: 1 },
-                    { value: 1.5, label: '1.5M', tier: 1 },
-                    { value: 2.0, label: '2.0M', tier: 2 },
-                    { value: 2.5, label: '2.5M', tier: 2 },
-                    { value: 3.0, label: '3.0M', tier: 3 },
-                  ].map((opt) => (
-                    <button key={opt.label} onClick={() => store.setField('dustH', opt.value)}
-                      className={`p-3 rounded-lg border-[1.5px] text-center transition-all ${
-                        store.dustH === opt.value
-                          ? 'border-[#3b82f6] bg-[#eff6ff] text-[#1d4ed8]'
-                          : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
-                      }`}>
-                      <div className="font-bold">{opt.label}</div>
-                      {opt.tier > 0 && <div className="text-xs text-[#94a3b8] mt-0.5">{opt.tier}단</div>}
-                    </button>
-                  ))}
-                </div>
-                {store.dustH > 0 && (
-                  <div className="bg-[#f0f9ff] border-l-[3px] border-[#38bdf8] rounded-r-lg px-3 py-2 text-xs text-[#0369a1] space-y-0.5">
-                    <div>• 분진망 {store.dustH}M → {store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}단</div>
-                    <div>• 횡대 {store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}단 추가</div>
-                    <div>• 주주파이프 규격 +{store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}M</div>
-                    {store.dustH >= 2.0 && <div>• H≥2.0M 추가 설치/해체비 적용</div>}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 0, label: '없음', tier: 0 },
+                      { value: 1.0, label: '1.0M', tier: 1 },
+                      { value: 1.5, label: '1.5M', tier: 1 },
+                      { value: 2.0, label: '2.0M', tier: 2 },
+                      { value: 2.5, label: '2.5M', tier: 2 },
+                      { value: 3.0, label: '3.0M', tier: 3 },
+                    ].map((opt) => (
+                      <button key={opt.label} onClick={() => store.setField('dustH', opt.value)}
+                        className={`p-3 rounded-lg border-[1.5px] text-center transition-all ${
+                          store.dustH === opt.value
+                            ? 'border-[#3b82f6] bg-[#eff6ff] text-[#1d4ed8]'
+                            : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                        }`}>
+                        <div className="font-bold">{opt.label}</div>
+                        {opt.tier > 0 && <div className="text-xs text-[#94a3b8] mt-0.5">{opt.tier}단</div>}
+                      </button>
+                    ))}
                   </div>
-                )}
+                  {store.dustH > 0 && (
+                    <div className="mt-2 bg-[#f0f9ff] border-l-[3px] border-[#38bdf8] rounded-r-lg px-3 py-2 text-xs text-[#0369a1] space-y-0.5">
+                      <div>• 분진망 {store.dustH}M → {store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}단 · 횡대 추가</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Q-S1~S3 현장 난이도 자가진단 (한 화면 3문항) */}
+                <div className="border-t border-[#e5e7eb] pt-5">
+                  <div className="flex gap-2 items-start mb-1">
+                    <span className="text-xl">📋</span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0f172a]">현장 조건 확인 <span className="text-xs font-normal text-[#94a3b8]">(선택사항 · 10초)</span></h2>
+                      <p className="text-xs text-[#64748b]">더 정확한 견적 안내를 위한 질문입니다</p>
+                    </div>
+                  </div>
+
+                  {/* Q-S1 지형 */}
+                  <div className="mt-4">
+                    <div className="text-sm font-semibold text-[#334155] mb-2">Q-S1. 현장 바닥이 평탄한가요?</div>
+                    <div className="flex gap-2">
+                      {([
+                        { value: false, label: '✓ 평탄', desc: '표준' },
+                        { value: true, label: '경사 있음', desc: '+10~40%' },
+                        { value: null, label: '모르겠어요', desc: '표준 적용' },
+                      ] as { value: boolean | null; label: string; desc: string }[]).map((opt) => (
+                        <button key={opt.label} onClick={() => store.setField('siteSlope', opt.value)}
+                          className={`flex-1 p-2.5 rounded-lg border-[1.5px] text-center transition-all ${
+                            store.siteSlope === opt.value
+                              ? 'border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]'
+                              : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                          }`}>
+                          <div className="font-bold text-sm">{opt.label}</div>
+                          <div className="text-xs text-[#94a3b8]">{opt.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Q-S2 선형 */}
+                  <div className="mt-4">
+                    <div className="text-sm font-semibold text-[#334155] mb-2">Q-S2. 방음벽 구간이 직선인가요?</div>
+                    <div className="flex gap-2">
+                      {([
+                        { value: false, label: '✓ 직선', desc: '표준' },
+                        { value: true, label: '곡선 포함', desc: '+5~25%' },
+                        { value: null, label: '모르겠어요', desc: '표준 적용' },
+                      ] as { value: boolean | null; label: string; desc: string }[]).map((opt) => (
+                        <button key={opt.label} onClick={() => store.setField('siteCurve', opt.value)}
+                          className={`flex-1 p-2.5 rounded-lg border-[1.5px] text-center transition-all ${
+                            store.siteCurve === opt.value
+                              ? 'border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]'
+                              : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                          }`}>
+                          <div className="font-bold text-sm">{opt.label}</div>
+                          <div className="text-xs text-[#94a3b8]">{opt.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Q-S3 근접 */}
+                  <div className="mt-4">
+                    <div className="text-sm font-semibold text-[#334155] mb-2">Q-S3. 인접 건물/구조물이 1M 이내에 있나요?</div>
+                    <div className="flex gap-2">
+                      {([
+                        { value: false, label: '✓ 없음', desc: '표준' },
+                        { value: true, label: '있음', desc: '장비+20~50%' },
+                        { value: null, label: '모르겠어요', desc: '표준 적용' },
+                      ] as { value: boolean | null; label: string; desc: string }[]).map((opt) => (
+                        <button key={opt.label} onClick={() => store.setField('siteAdjacent', opt.value)}
+                          className={`flex-1 p-2.5 rounded-lg border-[1.5px] text-center transition-all ${
+                            store.siteAdjacent === opt.value
+                              ? 'border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]'
+                              : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                          }`}>
+                          <div className="font-bold text-sm">{opt.label}</div>
+                          <div className="text-xs text-[#94a3b8]">{opt.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 특수현장 노티스 (조건 충족 시 즉시 표시) */}
+                  {store.siteSlope === true && (
+                    <div className="mt-3 bg-[#fffbeb] border-l-[3px] border-[#f59e0b] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">
+                      ⚠ 경사지 시공은 M당 +10~40% 추가 비용이 발생할 수 있습니다. 을 실제 견적으로 반드시 확인하세요.
+                    </div>
+                  )}
+                  {store.siteCurve === true && (
+                    <div className="mt-3 bg-[#fffbeb] border-l-[3px] border-[#f59e0b] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">
+                      ⚠ 곡선 구간은 자재 손율 증가로 M당 +5~25% 추가될 수 있습니다. 을 실제 견적으로 확인하세요.
+                    </div>
+                  )}
+                  {store.siteAdjacent === true && (
+                    <div className="mt-3 bg-[#fffbeb] border-l-[3px] border-[#f59e0b] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">
+                      ⚠ 인접 구조물이 있는 경우 장비 진입 제한으로 장비비가 +20~50% 증가할 수 있습니다.
+                    </div>
+                  )}
+                  {[store.siteSlope, store.siteCurve, store.siteAdjacent].filter(v => v === true).length >= 2 && (
+                    <div className="mt-3 bg-[#fef2f2] border-l-[3px] border-[#ef4444] rounded-r-lg px-3 py-2 text-xs text-[#991b1b] font-bold">
+                      ⚠⚠ 복합 특수 조건 현장입니다. 엔진 산출값 편차가 ±40% 이상 날 수 있습니다. 을 현장 확인 견적 필수.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </motion.div>
