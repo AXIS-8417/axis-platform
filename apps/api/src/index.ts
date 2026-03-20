@@ -13,6 +13,7 @@ import {
   calc8Matrix,
   validateDeviation,
   inferRegion,
+  getDustTier,
   DISCLAIMER,
   QuoteInput,
   Design,
@@ -164,10 +165,12 @@ app.get('/api/engine/premium', async (request: FastifyRequest, reply: FastifyRep
   const q = request.query as any;
   try {
     const { len, panel, h, region, floor, bbMonths, asset, contract, gate, doorGrade, doorW, doorMesh, dustH } = q;
-    const opts = { bbMonths: Number(bbMonths)||6, gate: gate||'없음', doorGrade: doorGrade||'신재', doorW: Number(doorW)||4, doorMesh: doorMesh==='true', dustH: Number(dustH)||0 };
+    const dH = Number(dustH)||0;
+    const dustN = getDustTier(dH);
+    const opts = { bbMonths: Number(bbMonths)||6, gate: gate||'없음', doorGrade: doorGrade||'신재', doorW: Number(doorW)||4, doorMesh: doorMesh==='true', dustH: dH };
     const input = { region: region||'경기남부', len: Number(len)||160, panel: panel||'RPP', h: Number(h)||3, floor: floor||'파이프박기', asset: asset||'전체고재', contract: contract||'바이백' };
-    const dJ = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', false);
-    const dP = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', true);
+    const dJ = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', false, dustN);
+    const dP = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', true, dustN);
     return {
       실전형: { design: dJ, result: calcEstimate(input as any, dJ, opts) },
       표준형: { design: dP, result: calcEstimate(input as any, dP, opts) },
@@ -185,11 +188,12 @@ app.post('/api/engine/premium', {
 }, async (request: FastifyRequest, reply: FastifyReply) => {
   const body = request.body as any;
   try {
-    const { len, panel, h, region, floor, bbMonths, asset, contract, gate, doorGrade, doorW, doorMesh } = body;
-    const opts = { bbMonths: Number(bbMonths)||6, gate: gate||'없음', doorGrade: doorGrade||'신재', doorW: Number(doorW)||4, doorMesh: doorMesh===true };
+    const { len, panel, h, region, floor, bbMonths, asset, contract, gate, doorGrade, doorW, doorMesh, dustH } = body;
+    const postDustN = getDustTier(Number(dustH)||0);
+    const opts = { bbMonths: Number(bbMonths)||6, gate: gate||'없음', doorGrade: doorGrade||'신재', doorW: Number(doorW)||4, doorMesh: doorMesh===true, dustH: Number(dustH)||0 };
     const input = { region: region||'경기남부', len: Number(len)||160, panel: panel||'RPP', h: Number(h)||3, floor: floor||'파이프박기', asset: asset||'전체고재', contract: contract||'바이백' };
-    const dJ = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', false);
-    const dP = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', true);
+    const dJ = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', false, postDustN);
+    const dP = makeDesign(Number(h)||3, floor||'파이프박기', panel||'RPP', true, postDustN);
     return {
       실전형: { design: dJ, result: calcEstimate(input as any, dJ, opts) },
       표준형: { design: dP, result: calcEstimate(input as any, dP, opts) },

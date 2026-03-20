@@ -74,7 +74,7 @@ export default function Premium() {
     try {
       setLoading(true);
       const { data } = await api.get('/api/engine/premium', {
-        params: { len, panel, h, region, floor, bbMonths, asset: '전체고재', contract: '바이백' },
+        params: { len, panel, h, region, floor, bbMonths, asset: '전체고재', contract: '바이백', dustH: store.dustH || 0 },
       });
       setPractical(data['실전형']); setStandard(data['표준형']);
     } catch {} finally { setLoading(false); }
