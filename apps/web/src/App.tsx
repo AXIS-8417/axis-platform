@@ -18,6 +18,28 @@ import Dashboard from './pages/Dashboard';
 import QuoteHistory from './pages/QuoteHistory';
 import QuoteView from './pages/QuoteView';
 import QuoteMerge from './pages/QuoteMerge';
+import PlatformLayout from './components/PlatformLayout';
+import PlatformLogin from './pages/platform/PlatformLogin';
+import GapHome from './pages/platform/gap/GapHome';
+import GapSites from './pages/platform/gap/GapSites';
+import GapWorkRecords from './pages/platform/gap/GapWorkRecords';
+import GapDocuments from './pages/platform/gap/GapDocuments';
+import GapBilling from './pages/platform/gap/GapBilling';
+import GapDesignChange from './pages/platform/gap/GapDesignChange';
+import EulHome from './pages/platform/eul/EulHome';
+import EulWorkOrders from './pages/platform/eul/EulWorkOrders';
+import EulCalls from './pages/platform/eul/EulCalls';
+import EulGate from './pages/platform/eul/EulGate';
+import EulSettlement from './pages/platform/eul/EulSettlement';
+import EulEquipment from './pages/platform/eul/EulEquipment';
+import EulContracts from './pages/platform/eul/EulContracts';
+import EulRemicon from './pages/platform/eul/EulRemicon';
+import ByeongHome from './pages/platform/byeong/ByeongHome';
+import ByeongCalls from './pages/platform/byeong/ByeongCalls';
+import ByeongReports from './pages/platform/byeong/ByeongReports';
+import ByeongSafety from './pages/platform/byeong/ByeongSafety';
+import ByeongGrade from './pages/platform/byeong/ByeongGrade';
+import ByeongContracts from './pages/platform/byeong/ByeongContracts';
 
 function PrivateRoute({ allowedRoles }: { allowedRoles?: UserRole[] }) {
   const { token, user } = useAuthStore();
@@ -55,6 +77,30 @@ export default function App() {
         <Route path="/quotes" element={<QuoteHistory />} />
         <Route path="/quotes/view/:id" element={<QuoteView />} />
         <Route path="/quotes/merge" element={<QuoteMerge />} />
+
+        {/* Platform */}
+        <Route path="/platform/login" element={<PlatformLogin />} />
+        <Route path="/platform/gap" element={<PlatformLayout role="갑"><GapHome /></PlatformLayout>} />
+        <Route path="/platform/gap/sites" element={<PlatformLayout role="갑"><GapSites /></PlatformLayout>} />
+        <Route path="/platform/gap/records" element={<PlatformLayout role="갑"><GapWorkRecords /></PlatformLayout>} />
+        <Route path="/platform/gap/documents" element={<PlatformLayout role="갑"><GapDocuments /></PlatformLayout>} />
+        <Route path="/platform/gap/billing" element={<PlatformLayout role="갑"><GapBilling /></PlatformLayout>} />
+        <Route path="/platform/gap/design-change" element={<PlatformLayout role="갑"><GapDesignChange /></PlatformLayout>} />
+        <Route path="/platform/eul" element={<PlatformLayout role="을"><EulHome /></PlatformLayout>} />
+        <Route path="/platform/eul/work-orders" element={<PlatformLayout role="을"><EulWorkOrders /></PlatformLayout>} />
+        <Route path="/platform/eul/calls" element={<PlatformLayout role="을"><EulCalls /></PlatformLayout>} />
+        <Route path="/platform/eul/gate" element={<PlatformLayout role="을"><EulGate /></PlatformLayout>} />
+        <Route path="/platform/eul/settlement" element={<PlatformLayout role="을"><EulSettlement /></PlatformLayout>} />
+        <Route path="/platform/eul/equipment" element={<PlatformLayout role="을"><EulEquipment /></PlatformLayout>} />
+        <Route path="/platform/eul/contracts" element={<PlatformLayout role="을"><EulContracts /></PlatformLayout>} />
+        <Route path="/platform/eul/remicon" element={<PlatformLayout role="을"><EulRemicon /></PlatformLayout>} />
+        <Route path="/platform/byeong" element={<PlatformLayout role="병"><ByeongHome /></PlatformLayout>} />
+        <Route path="/platform/byeong/calls" element={<PlatformLayout role="병"><ByeongCalls /></PlatformLayout>} />
+        <Route path="/platform/byeong/reports" element={<PlatformLayout role="병"><ByeongReports /></PlatformLayout>} />
+        <Route path="/platform/byeong/safety" element={<PlatformLayout role="병"><ByeongSafety /></PlatformLayout>} />
+        <Route path="/platform/byeong/grade" element={<PlatformLayout role="병"><ByeongGrade /></PlatformLayout>} />
+        <Route path="/platform/byeong/contracts" element={<PlatformLayout role="병"><ByeongContracts /></PlatformLayout>} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
