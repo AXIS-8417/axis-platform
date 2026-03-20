@@ -29,13 +29,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-axis-bg flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#070C12' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="text-axis-teal font-mono font-bold text-2xl tracking-wider">
+          <Link to="/" className="font-mono font-bold text-2xl tracking-wider" style={{ color: '#00D9CC' }}>
             AXIS
           </Link>
-          <p className="text-slate-500 mt-2">시공업체 로그인</p>
+          <p className="mt-2" style={{ color: '#64748B' }}>견적엔진 로그인</p>
         </div>
 
         <form onSubmit={handleSubmit} className="axis-card space-y-5">
@@ -77,11 +77,14 @@ export default function Login() {
             {loading ? '로그인 중...' : '로그인'}
           </button>
 
-          <p className="text-center text-sm text-slate-500">
+          <p className="text-center text-sm" style={{ color: '#64748B' }}>
             계정이 없으신가요?{' '}
-            <Link to="/auth/register" className="text-axis-teal hover:underline">
+            <Link to="/platform/signup" style={{ color: '#00D9CC' }} className="hover:underline font-semibold">
               회원가입
             </Link>
+          </p>
+          <p className="text-center text-xs mt-2" style={{ color: '#334155' }}>
+            <Link to="/platform/login" style={{ color: '#64748B' }} className="hover:underline">플랫폼 로그인 →</Link>
           </p>
         </form>
       </div>
