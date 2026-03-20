@@ -1,6 +1,6 @@
-// ─────────────────────────────────────────────────────────────
-// AXIS Platform — Platform Routes (Fastify Plugin)
-// ─────────────────────────────────────────────────────────────
+// -────────────────────────────────────────────────────────────
+// AXIS Platform -- Platform Routes (Fastify Plugin)
+// -────────────────────────────────────────────────────────────
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PrismaClient } from '@prisma/client';
@@ -8,12 +8,12 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-// ── ID Generator ──────────────────────────────────────────────
+// -- ID Generator ──────────────────────────────────────────────
 function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 }
 
-// ── State Machine (runtime require from engine dist) ──────────
+// -- State Machine (runtime require from engine dist) ──────────
 let canTransition: any;
 try {
   const sm = require('@axis/engine');
@@ -23,7 +23,7 @@ try {
   canTransition = () => ({ allowed: false, reason: 'State machine engine not loaded' });
 }
 
-// ── Pagination helper ─────────────────────────────────────────
+// -- Pagination helper ─────────────────────────────────────────
 function paginate(query: any) {
   return {
     take: Number(query.limit) || 20,
@@ -31,7 +31,7 @@ function paginate(query: any) {
   };
 }
 
-// ── Auth preHandler ───────────────────────────────────────────
+// -- Auth preHandler ───────────────────────────────────────────
 async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   try {
     await request.jwtVerify();
@@ -44,7 +44,7 @@ function getUser(request: FastifyRequest): any {
   return (request as any).user;
 }
 
-// ── Equipment 13-item validation rules (PART 263) ─────────────
+// -- Equipment 13-item validation rules (PART 263) ─────────────
 const EQUIP_VALIDATION_ITEMS = [
   { key: 'regNo', label: '등록번호', rule: (v: any) => !!v },
   { key: 'inspectionExpiry', label: '검사유효기간', rule: (v: any) => v && new Date(v) > new Date() },
@@ -61,17 +61,33 @@ const EQUIP_VALIDATION_ITEMS = [
   { key: 'durabilityDate', label: '내구연한', rule: (v: any) => v && new Date(v) > new Date() },
 ];
 
-// ═════════════════════════════════════════════════════════════
+// -- Remicon K x L constants ───────────────────────────────────
+const DB_GROUND: Record<string, number> = {
+  '점성토': 1.75,
+  '사질토_표준': 2.10,
+  '사질토_불량': 2.43,
+  '자갈층': 2.78,
+  '연약지반': 3.20,
+};
+
+const DB_POUR: Record<string, number> = {
+  '직타_깔때기': 0.01,
+  '직타': 0.04,
+  '버킷_표준': 0.10,
+  '버킷_원거리': 0.15,
+};
+
+// =============================================================
 // PLUGIN EXPORT
-// ═════════════════════════════════════════════════════════════
+// =============================================================
 
 export default async function platformRoutes(app: FastifyInstance) {
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 1. PLATFORM AUTH
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
-  // ── Signup ────────────────────────────────────────────────
+  // -- Signup ────────────────────────────────────────────────
   app.post('/api/platform/auth/signup', async (request: FastifyRequest, reply: FastifyReply) => {
     const { email, password, name, phone, companyName, partyRole } = request.body as any;
 
@@ -133,7 +149,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
   });
 
-  // ── Login ─────────────────────────────────────────────────
+  // -- Login ─────────────────────────────────────────────────
   app.post('/api/platform/auth/login', async (request: FastifyRequest, reply: FastifyReply) => {
     const { email, password } = request.body as any;
 
@@ -174,7 +190,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
   });
 
-  // ── Me ────────────────────────────────────────────────────
+  // -- Me ────────────────────────────────────────────────────
   app.get('/api/platform/auth/me', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
     const platformUser = await prisma.platformUser.findFirst({ where: { userId: u.email || u.id } });
@@ -192,11 +208,11 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 2. MASTER CRUD
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
-  // ── Parties ───────────────────────────────────────────────
+  // -- Parties ───────────────────────────────────────────────
   app.get('/api/platform/parties', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const where: any = {};
@@ -235,7 +251,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(party);
   });
 
-  // ── Users ─────────────────────────────────────────────────
+  // -- Users ─────────────────────────────────────────────────
   app.get('/api/platform/users', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const where: any = {};
@@ -273,7 +289,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(user);
   });
 
-  // ── Sites ─────────────────────────────────────────────────
+  // -- Sites ─────────────────────────────────────────────────
   app.get('/api/platform/sites', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const u = getUser(request);
@@ -319,7 +335,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(site);
   });
 
-  // ── Crews ─────────────────────────────────────────────────
+  // -- Crews ─────────────────────────────────────────────────
   app.get('/api/platform/crews', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const where: any = {};
@@ -358,7 +374,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(crew);
   });
 
-  // ── Equipment ─────────────────────────────────────────────
+  // -- Equipment ─────────────────────────────────────────────
   app.get('/api/platform/equipment', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const where: any = {};
@@ -417,9 +433,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(equip);
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 3. WORK ORDERS + STATE MACHINE
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/work-orders', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
@@ -500,7 +516,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(wo);
   });
 
-  // ── Status Transition ─────────────────────────────────────
+  // -- Status Transition ─────────────────────────────────────
   app.patch('/api/platform/work-orders/:id/status', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
     const { targetStatus } = request.body as any;
@@ -564,9 +580,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ message: '상태가 변경되었습니다.', workOrder: updated });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 4. CALL MATCHING
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/work-orders/:id/call', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
@@ -639,9 +655,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 5. CONSTRUCTION REPORTS
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/reports', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
@@ -716,9 +732,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send(report);
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 6. SAFETY CHECKS
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/safety-checks', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
@@ -769,9 +785,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total });
   });
 
-  // ═══════════════════════════════════════════════════════════
-  // 7. SEAL (봉인)
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
+  // 7. SEAL
+  // ===========================================================
 
   app.post('/api/platform/seals', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
@@ -815,7 +831,7 @@ export default async function platformRoutes(app: FastifyInstance) {
         await prisma.siteSurvey.update({ where: { surveyId: body.targetId }, data: { sealId } });
       }
     } catch {
-      // Target may not support sealId field — ignore
+      // Target may not support sealId field -- ignore
     }
 
     return reply.status(201).send(seal);
@@ -835,9 +851,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 8. BILLING + PAYMENT
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/billings', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
@@ -914,7 +930,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ message: '결제가 확인되었습니다.', billing: updated, payment });
   });
 
-  // ── PG Callback (Mock) ────────────────────────────────────
+  // -- PG Callback (Mock) ────────────────────────────────────
   app.post('/api/platform/payments/callback', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const { paymentId, pgTransactionId, status, amount } = body;
@@ -940,9 +956,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ message: 'PG 콜백이 처리되었습니다.', payment: updated });
   });
 
-  // ═══════════════════════════════════════════════════════════
-  // 9. LABOR CONTRACTS (★ 갑 SELECT 차단)
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
+  // 9. LABOR CONTRACTS (GAP SELECT block)
+  // ===========================================================
 
   app.post('/api/platform/contracts', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
@@ -974,7 +990,7 @@ export default async function platformRoutes(app: FastifyInstance) {
   app.get('/api/platform/contracts', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
 
-    // CRITICAL: 갑 role → 403 immediately on any labor contract read
+    // CRITICAL: GAP role -> 403 immediately on any labor contract read
     if (u.role === 'GAP') {
       return reply.status(403).send({ error: '갑 역할은 근로계약 정보를 조회할 수 없습니다.' });
     }
@@ -992,7 +1008,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total });
   });
 
-  // ── Face-to-face sign ─────────────────────────────────────
+  // -- Face-to-face sign ─────────────────────────────────────
   app.post('/api/platform/contracts/:id/sign-face', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
     const u = getUser(request);
@@ -1026,7 +1042,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ message: '대면 서명이 완료되었습니다.', contract: updated });
   });
 
-  // ── Remote link sign ──────────────────────────────────────
+  // -- Remote link sign ──────────────────────────────────────
   app.post('/api/platform/contracts/:id/send-link', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
     const u = getUser(request);
@@ -1059,9 +1075,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ message: '서명 링크가 전송되었습니다.', contract: updated, linkUrl });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 10. EQUIPMENT VALIDATION (PART 263)
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/equipment/:id/validate', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
@@ -1093,7 +1109,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
   });
 
-  // ── Site Surveys ──────────────────────────────────────────
+  // -- Site Surveys ──────────────────────────────────────────
   app.post('/api/platform/site-surveys', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
     const body = request.body as any;
@@ -1138,54 +1154,82 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total: items.length });
   });
 
-  // ═══════════════════════════════════════════════════════════
-  // 11. REMICON (PART 265)
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
+  // 11. REMICON (PART 265) -- FIXED K x L formula
+  // ===========================================================
 
-  // ── K x L Calculation ─────────────────────────────────────
+  // -- K x L Calculation (CORRECTED) ─────────────────────────
   app.post('/api/platform/remicon/calculate', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
-    const { kGround, lMethod, pileCount, augerDiameterMm, embedDepthM } = body;
+    const { groundType, pourMethod, pileCount, augerDiameterMm, embedDepthM } = body;
 
-    if (kGround == null || lMethod == null) {
-      return reply.status(400).send({ error: 'kGround, lMethod는 필수입니다.' });
+    // Resolve kGround from constant table or direct numeric value
+    let kGround: number;
+    if (groundType && DB_GROUND[groundType] != null) {
+      kGround = DB_GROUND[groundType];
+    } else if (body.kGround != null) {
+      kGround = Number(body.kGround);
+    } else {
+      return reply.status(400).send({ error: 'groundType 또는 kGround는 필수입니다. 유효한 groundType: ' + Object.keys(DB_GROUND).join(', ') });
     }
 
-    const k = Number(kGround);
-    const l = Number(lMethod);
+    // Resolve lMethod from constant table or direct numeric value
+    let lMethod: number;
+    if (pourMethod && DB_POUR[pourMethod] != null) {
+      lMethod = DB_POUR[pourMethod];
+    } else if (body.lMethod != null) {
+      lMethod = Number(body.lMethod);
+    } else {
+      return reply.status(400).send({ error: 'pourMethod 또는 lMethod는 필수입니다. 유효한 pourMethod: ' + Object.keys(DB_POUR).join(', ') });
+    }
+
     // V(theory) = pi * (D/2)^2 * H * N  (in m3)
     const dM = (augerDiameterMm ? Number(augerDiameterMm) : 400) / 1000;
     const h = embedDepthM ? Number(embedDepthM) : 1;
     const n = pileCount ? Number(pileCount) : 1;
     const vTheory = Math.PI * Math.pow(dM / 2, 2) * h * n;
-    const vOrder = vTheory * k * l;
+
+    // CORRECTED FORMULA: vOrder = vTheory * kGround * (1 + lMethod)
+    const vOrder = vTheory * kGround * (1 + lMethod);
 
     const truckCapacity = 6; // m3 per truck
     const truckCount = Math.ceil(vOrder / truckCapacity);
 
     return reply.send({
-      kGround: k,
-      lMethod: l,
+      kGround,
+      lMethod,
+      groundType: groundType || null,
+      pourMethod: pourMethod || null,
       vTheoryM3: Math.round(vTheory * 1000) / 1000,
       vOrderM3: Math.round(vOrder * 1000) / 1000,
       truckCount,
-      formula: `V_order = V_theory × K(${k}) × L(${l})`,
+      formula: `V_order = V_theory x kGround(${kGround}) x (1 + lMethod(${lMethod}))`,
+      constants: { DB_GROUND, DB_POUR },
     });
   });
 
-  // ── Deliveries ────────────────────────────────────────────
+  // -- Deliveries (FIXED chloride 3-tier + transport 60min) ──
   app.post('/api/platform/remicon/deliveries', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
 
-    // Auto-judge chloride and transport
-    let chlorideGrade = '적합';
-    if (body.chlorideKgm3 && Number(body.chlorideKgm3) > 0.3) {
-      chlorideGrade = '부적합';
+    // FIXED: 3-tier chloride grading
+    let chlorideGrade = 'GREEN';
+    const chlorideVal = body.chlorideKgm3 ? Number(body.chlorideKgm3) : null;
+    if (chlorideVal != null) {
+      if (chlorideVal <= 0.25) {
+        chlorideGrade = 'GREEN';
+      } else if (chlorideVal <= 0.30) {
+        chlorideGrade = 'YELLOW';
+      } else {
+        chlorideGrade = 'RED';
+      }
     }
 
-    let transportGrade = '적합';
-    if (body.transportMinutes && Number(body.transportMinutes) > 90) {
-      transportGrade = '부적합';
+    // FIXED: transport threshold >60min = FLAG (not 90)
+    let transportGrade = 'GREEN';
+    const transportVal = body.transportMinutes ? Number(body.transportMinutes) : null;
+    if (transportVal != null && transportVal > 60) {
+      transportGrade = 'RED';
     }
 
     const delivery = await prisma.remiconDelivery.create({
@@ -1214,10 +1258,10 @@ export default async function platformRoutes(app: FastifyInstance) {
         supplier: body.supplier,
         supplierBizNo: body.supplierBizNo,
         ksCertNo: body.ksCertNo,
-        chlorideKgm3: body.chlorideKgm3 ? Number(body.chlorideKgm3) : undefined,
+        chlorideKgm3: chlorideVal ?? undefined,
         chlorideGrade,
         airContentPct: body.airContentPct ? Number(body.airContentPct) : undefined,
-        transportMinutes: body.transportMinutes ? Number(body.transportMinutes) : undefined,
+        transportMinutes: transportVal ?? undefined,
         transportGrade,
         pourDayTempC: body.pourDayTempC ? Number(body.pourDayTempC) : undefined,
         curingMode: body.curingMode,
@@ -1242,15 +1286,15 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total });
   });
 
-  // ── Curing Master ─────────────────────────────────────────
+  // -- Curing Master ─────────────────────────────────────────
   app.get('/api/platform/remicon/curing-master', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const items = await prisma.curingMaster.findMany();
     return reply.send({ items, total: items.length });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 12. SAFETY MANAGEMENT (PART 266)
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.post('/api/platform/safety-roles', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
@@ -1282,7 +1326,7 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total: items.length });
   });
 
-  // ── Education Compliance Check ────────────────────────────
+  // -- Education Compliance Check ────────────────────────────
   app.post('/api/platform/education/check', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const { userId, workerType } = body;
@@ -1327,15 +1371,15 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
   });
 
-  // ── Education Requirements (14 presets) ───────────────────
+  // -- Education Requirements (14 presets) ───────────────────
   app.get('/api/platform/education/requirements', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const items = await prisma.educationRequirement.findMany();
     return reply.send({ items, total: items.length });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 13. CODE MASTER + SYSTEM CONFIG
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.get('/api/platform/codes', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
@@ -1355,9 +1399,9 @@ export default async function platformRoutes(app: FastifyInstance) {
     return reply.send({ items, total: items.length });
   });
 
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
   // 14. AUDIT LOG
-  // ═══════════════════════════════════════════════════════════
+  // ===========================================================
 
   app.get('/api/platform/audit-logs', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const u = getUser(request);
