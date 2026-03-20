@@ -42,6 +42,10 @@ import ByeongReports from './pages/platform/byeong/ByeongReports';
 import ByeongSafety from './pages/platform/byeong/ByeongSafety';
 import ByeongGrade from './pages/platform/byeong/ByeongGrade';
 import ByeongContracts from './pages/platform/byeong/ByeongContracts';
+import PlatformDash from './pages/platform/PlatformDash';
+import GPSView from './pages/platform/GPSView';
+import RiskView from './pages/platform/RiskView';
+import SealView from './pages/platform/SealView';
 
 function PrivateRoute({ allowedRoles }: { allowedRoles?: UserRole[] }) {
   const { token, user } = useAuthStore();
@@ -104,6 +108,10 @@ export default function App() {
         <Route path="/platform/byeong/safety" element={<PlatformLayout role="병"><ByeongSafety /></PlatformLayout>} />
         <Route path="/platform/byeong/grade" element={<PlatformLayout role="병"><ByeongGrade /></PlatformLayout>} />
         <Route path="/platform/byeong/contracts" element={<PlatformLayout role="병"><ByeongContracts /></PlatformLayout>} />
+        <Route path="/platform/dashboard" element={<PlatformLayout role="갑"><PlatformDash /></PlatformLayout>} />
+        <Route path="/platform/gps" element={<PlatformLayout role="을"><GPSView /></PlatformLayout>} />
+        <Route path="/platform/risk" element={<PlatformLayout role="을"><RiskView /></PlatformLayout>} />
+        <Route path="/platform/seal" element={<PlatformLayout role="을"><SealView /></PlatformLayout>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
