@@ -60,6 +60,7 @@ export default function Premium() {
 
   const [tab, setTab] = useState<'price' | 'design' | 'struct' | 'env'>('price');
   const [bbMonths, setBbMonths] = useState(6);
+  const [gyeongbiOpen, setGyeongbiOpen] = useState(false);
   const [practical, setPractical] = useState<any>(null);
   const [standard, setStandard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -147,16 +148,70 @@ export default function Premium() {
 
         {/* 탭 내용 */}
         <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-lg p-6 mb-6">
-          {tab === 'price' && practical?.result && standard?.result && (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">표준형</th></tr></thead>
-              <tbody>
-                {[['자재비/M',practical.result.matM,standard.result.matM],['노무비/M',practical.result.labM,standard.result.labM],['자재 합계',practical.result.matTotal,standard.result.matTotal],['노무 합계',practical.result.labTotal,standard.result.labTotal],['장비/기초',practical.result.eqpTotal||0,standard.result.eqpTotal||0],['운반비',practical.result.transTotal,standard.result.transTotal],['BB차감',-practical.result.bbRefund,-standard.result.bbRefund],['총액',practical.result.rounded,standard.result.rounded]].map(([label,p,s],i)=>(
-                  <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {tab === 'price' && practical?.result && standard?.result && (() => {
+            const pR = practical.result;
+            const sR = standard.result;
+            const pGyeongbi = (pR.eqpTotal || 0) + (pR.transTotal || 0);
+            const sGyeongbi = (sR.eqpTotal || 0) + (sR.transTotal || 0);
+            const pTrans = pR.transDetail || {};
+            const sTrans = sR.transDetail || {};
+            const isBB = store.selectedCellKey?.includes('BB') || store.selectedCellKey?.includes('바이백');
+
+            return (
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">표준형</th></tr></thead>
+                <tbody>
+                  {[
+                    ['자재비/M', pR.matM, sR.matM],
+                    ['노무비/M', pR.labM, sR.labM],
+                    ['자재 합계', pR.matTotal, sR.matTotal],
+                    ['노무 합계', pR.labTotal, sR.labTotal],
+                  ].map(([label, p, s], i) => (
+                    <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
+                  ))}
+                  {/* 경비 통합 행 */}
+                  <tr className="border-b border-[#e5e7eb]/30 cursor-pointer hover:bg-[#f8fafc]" onClick={() => setGyeongbiOpen(!gyeongbiOpen)}>
+                    <td className="py-2 font-semibold">
+                      경비 <span className="text-[10px] text-[#94a3b8] ml-1">{gyeongbiOpen ? '▲ 접기' : '▼ 상세보기'}</span>
+                    </td>
+                    <td className="text-right font-mono font-semibold">{fmt(pGyeongbi)}원</td>
+                    <td className="text-right font-mono font-semibold">{fmt(sGyeongbi)}원</td>
+                  </tr>
+                  {gyeongbiOpen && (
+                    <>
+                      <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                        <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ 굴착기(0.4m³) 1대</td>
+                        <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pR.eqpTotal || 0)}원</td>
+                        <td className="text-right font-mono text-xs text-[#64748b]">{fmt(sR.eqpTotal || 0)}원</td>
+                      </tr>
+                      {pTrans.trucks > 0 && (
+                        <>
+                          <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ 5t카고 {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (편도)</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
+                          </tr>
+                          {isBB && (
+                            <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                              <td className="py-1.5 pl-4 text-xs text-[#64748b]">└ 5t카고 {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (복로-바이백)</td>
+                              <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
+                              <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
+                            </tr>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                  {[
+                    ['BB차감', -pR.bbRefund, -sR.bbRefund],
+                    ['총액', pR.rounded, sR.rounded],
+                  ].map(([label, p, s], i) => (
+                    <tr key={`b${i}`} className={`border-b border-[#e5e7eb]/30 ${(label as string) === '총액' ? 'font-bold' : ''}`}><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
           {tab === 'design' && practical?.design && standard?.design && (
             <table className="w-full text-sm">
               <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">조건</th><th className="text-right text-[#2563eb]">실전형</th><th className="text-right text-[#d97706]">표준형</th></tr></thead>

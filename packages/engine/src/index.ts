@@ -120,10 +120,18 @@ export function getDustTier(dustH: number): number {
   return 4;
 }
 
+// 표준형 횡대 확정 테이블 (절대 변경 불가)
+const STD_HWANGDAE: Record<number, number> = {
+  1: 2, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 7, 8: 8,
+};
+
 export function getFinalHwangdae(h: number, panel: string, isStd: boolean, dustN: number): number {
+  if (isStd) {
+    const stdBase = STD_HWANGDAE[Math.floor(h)] ?? (Math.floor(h) + 1);
+    return stdBase + dustN;
+  }
   const base = getBaseHwangdae(h, panel);
-  const structBonus = (isStd && h >= 4) ? 1 : 0; // ★ 4M+ 에서만
-  return base + structBonus + dustN;
+  return base + dustN;
 }
 
 // ══════════════════════════════════════════
@@ -290,6 +298,38 @@ export function calcGate(gate: string, grade: '고재'|'신재', W: number, _h: 
 }
 
 // ══════════════════════════════════════════
+// 기한후 월대여료율 (엑셀 바이백_파라미터 L열 / 통합데이터 AI열)
+// 품목별 차등 요율 — 엔진 v74 확정 테이블
+// ══════════════════════════════════════════
+const RENT_RATE: Record<string, number> = {
+  주주파이프:  0.016,
+  횡대파이프:  0.017,
+  연장파이프:  0.017,
+  지주파이프:  0.019,
+  보조지주:   0.019,
+  단관파이프:  0.017,
+  H빔:       0.016,
+  고정클램프:  0.020,
+  자동클램프:  0.020,
+  싱글클램프:  0.020,
+  연결핀:     0.022,
+  '후크B/N':  0.022,
+  양개조이너:  0.020,
+  세트앙카:   0.020,
+  베이스판:   0.020,
+  RPP:        0.019,
+  EGI:        0.020,
+  '스틸':     0.019,
+  양개도어:   0.019,
+  분진망:     0,       // 소모성 — 대여료 없음
+  기초파이프:  0,       // 소모성 — 대여료 없음
+};
+
+export function getRentRate(itemName: string): number {
+  return RENT_RATE[itemName] ?? 0.017; // 미등록 품목은 1.7% 기본값
+}
+
+// ══════════════════════════════════════════
 // 메인 견적 계산
 // ══════════════════════════════════════════
 export interface QuoteInput {
@@ -337,7 +377,7 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     { name: bom.specialName, qty: bom.specialQty, price: bom.specialPrice, bbGrade: bbCG, bbKey: bom.specialName || '' },
   ].filter(i => i.qty > 0);
 
-  let matTotal = 0, bbRefund = 0;
+  let matTotal = 0, bbRefund = 0, rentTotal = 0;
   for (const it of items) {
     const amt = it.qty * it.price;
     matTotal += amt;
@@ -345,6 +385,8 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
       const rate = calcBBDeductRate(it.bbKey, it.bbGrade, opts.bbMonths);
       bbRefund += Math.round(amt * rate);
     }
+    // 기한후 월대여료: 품목별 차등 요율 적용
+    rentTotal += amt * getRentRate(it.bbKey || it.name);
   }
 
   const eqpTotal = MISC_PRICE.굴착기;
@@ -368,6 +410,7 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   return {
     matTotal, labTotal, eqpTotal, transTotal, gateTotal,
+    transDetail: trans,
     bbRefund: bbRefund + gateBBRefund, bbRate: matTotal > 0 ? bbRefund / matTotal : 0,
     subtotal, total, rounded,
     totalPerM: Math.round(total / L),
@@ -378,7 +421,7 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     pctLab: subtotal > 0 ? Math.round(labTotal / subtotal * 100) : 0,
     pctEqp: subtotal > 0 ? Math.round(eqpTotal / subtotal * 100) : 0,
     pctTrans: subtotal > 0 ? Math.round(transTotal / subtotal * 100) : 0,
-    monthlyRent: Math.round(matTotal * 0.017), dailyRent: Math.round(matTotal * 0.017 / 30),
+    monthlyRent: Math.round(rentTotal), dailyRent: Math.round(rentTotal / 30),
     bom, laborDetail: labor, design,
   };
 }
