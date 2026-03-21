@@ -30,14 +30,14 @@ export default function GapHome() {
   const totalBillingAmt = pendingBillings.reduce((s: number, b: any) => s + (b.amount || 0), 0);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">갑 대시보드</h1>
         <span className="text-xs" style={{ color: '#64748B' }}>{new Date().toLocaleDateString('ko-KR')}</span>
       </div>
 
       {/* StatCards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: '진행 현장', value: activeSites, color: '#F0A500', link: '/platform/gap/sites' },
           { label: '청구 대기', value: `${pendingBillings.length}건`, color: '#EF4444', link: '/platform/gap/billing' },
@@ -52,7 +52,7 @@ export default function GapHome() {
       </div>
 
       {/* 최근 현장 */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div style={{ background: '#0C1520', border: '1px solid #1E293B' }} className="rounded-lg p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-semibold" style={{ color: '#F0A500' }}>현장 현황</h2>

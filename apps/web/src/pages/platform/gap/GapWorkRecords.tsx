@@ -62,7 +62,7 @@ export default function GapWorkRecords() {
   };
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-2">작업기록 조회</h1>
       <p className="text-xs mb-6" style={{ color: '#64748B' }}>현장별 -&gt; 작업지시 -&gt; 시공일보 -&gt; 안전점검 계층 뷰</p>
 

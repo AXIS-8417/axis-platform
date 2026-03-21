@@ -24,7 +24,7 @@ export default function EulRemicon() {
   const [elapsed] = useState(3);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex gap-3 mb-6">
         <h1 className="text-xl font-bold flex-1">레미콘</h1>
         {(['calc','vault','curing'] as const).map((t,i) => (
@@ -35,7 +35,7 @@ export default function EulRemicon() {
       {tab === 'calc' && (
         <div style={{ background:'#0C1520', border:'1px solid #1E293B' }} className="rounded-lg p-6 mb-6">
           <h2 className="text-sm font-semibold mb-4" style={{ color:'#00D9CC' }}>K×L 발주량 계산기</h2>
-          <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-4">
             {Object.entries({ augerMm:'오거직경(mm)', depthM:'근입깊이(M)', pileCount:'본수' }).map(([k,l]) => (
               <div key={k}><label className="text-xs block mb-1" style={{ color:'#64748B' }}>{l}</label>
               <input type="number" value={(form as any)[k]} onChange={e => setForm({...form,[k]:Number(e.target.value)})} className="w-full px-3 py-2 rounded" style={{ background:'#111B2A', border:'1px solid #334155', color:'#F1F5F9' }} /></div>
@@ -50,7 +50,7 @@ export default function EulRemicon() {
           <div className="text-xs mb-4" style={{ color:'#64748B' }}>기본값: 사질토+버킷표준 → K=2.31 (미확인 현장)</div>
           <button onClick={calc} className="px-6 py-2 rounded font-bold text-sm" style={{ background:'#00D9CC', color:'#070C12' }}>계산</button>
           {result && (
-            <div className="mt-6 grid grid-cols-4 gap-4 text-center rounded-lg p-4" style={{ background:'#111B2A' }}>
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-center rounded-lg p-4" style={{ background:'#111B2A' }}>
               <div className="p-3"><div className="text-xs" style={{ color:'#64748B' }}>이론체적</div><div className="font-mono font-bold text-lg">{result.vTheory?.toFixed(2)}m³</div></div>
               <div className="p-3"><div className="text-xs" style={{ color:'#64748B' }}>발주량</div><div className="font-mono font-bold text-lg" style={{ color:'#00D9CC' }}>{result.vOrder?.toFixed(1)}m³</div></div>
               <div className="p-3"><div className="text-xs" style={{ color:'#64748B' }}>K값</div><div className="font-mono font-bold text-lg">{result.kFinal?.toFixed(2)}</div></div>
@@ -86,7 +86,7 @@ export default function EulRemicon() {
               <div className="h-full rounded-full transition-all" style={{ width:`${elapsed/curingDays*100}%`, background:'#00D9CC' }} />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4 text-center text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-center text-sm">
             <div className="p-3 rounded" style={{ background:'#111B2A' }}><div className="text-xs" style={{ color:'#64748B' }}>콘크리트</div><div>보통콘크리트</div></div>
             <div className="p-3 rounded" style={{ background:'#111B2A' }}><div className="text-xs" style={{ color:'#64748B' }}>시멘트</div><div>보통포틀랜드</div></div>
             <div className="p-3 rounded" style={{ background:'#111B2A' }}><div className="text-xs" style={{ color:'#64748B' }}>양생모드</div><div style={{ color:'#F0A500' }}>간절기 (7일)</div></div>

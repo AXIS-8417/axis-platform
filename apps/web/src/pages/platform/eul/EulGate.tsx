@@ -93,7 +93,7 @@ export default function EulGate() {
   const recon = reconciliation || { reconciled:[], unmatchedEul:[], unmatchedByeong:[], summary:{ totalEul:0, totalByeong:0, matched:0, matchRate:0 } };
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-2">게이트 관리</h1>
       <p className="text-xs mb-6" style={{ color:'#64748B' }}>4축 구조: 시공·장비·화물·<strong style={{ color:'#F0A500' }}>게이트</strong> | 을원장(단독잠금) + 병원장(상호잠금) + 정합대조</p>
 
@@ -255,7 +255,7 @@ export default function EulGate() {
           </div>
 
           {/* 요약 */}
-          <div className="grid grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             {[
               { label:'을 원장', count: recon.summary?.totalEul || 0, color:'#00D9CC' },
               { label:'병 원장', count: recon.summary?.totalByeong || 0, color:'#22C55E' },

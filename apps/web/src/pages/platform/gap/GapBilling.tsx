@@ -18,7 +18,7 @@ export default function GapBilling() {
   const statusColor = (s: string) => s === '청구생성' ? '#F0A500' : s === '결제완료' ? '#22C55E' : '#64748B';
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-6">청구·결제</h1>
       <div className="space-y-3">
         {billings.map(b => (

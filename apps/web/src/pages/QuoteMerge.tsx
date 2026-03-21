@@ -113,7 +113,7 @@ export default function QuoteMerge() {
             {/* 소계 */}
             <div style={{ background: '#111B2A', border: '1px solid #334155' }} className="rounded-lg p-6 mb-6">
               <h2 className="text-sm font-semibold mb-5" style={{ color: '#F0A500' }}>소 계</h2>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                 <div className="flex justify-between">
                   <span style={{ color: '#94A3B8' }}>총연장</span>
                   <span className="font-mono font-bold text-lg" style={{ color: '#00D9CC' }}>{fmt(r.totalLength)}M</span>

@@ -71,7 +71,7 @@ export default function SimpleRespond() {
         </div>
 
         {/* 블록 요약 */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
           {[
             ['A블록·현장조건', `${panel} · H${height}M · L${length}M`],
             ['B블록·예정가', `BB · 전체고재`],
@@ -254,7 +254,7 @@ export default function SimpleRespond() {
               </div>
 
               {track !== '엔진승인' && (
-                <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
                   <div>
                     <div className="text-xs text-[#64748b] mb-1">총 견적액 (원)</div>
                     <input type="number" value={totalAmt} onChange={e => setTotalAmt(e.target.value)} placeholder={String(engTotal)}
@@ -289,7 +289,7 @@ export default function SimpleRespond() {
         </div>
 
         {/* 하단 요약 — 6항목 */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-4">
           {[
             ['자재(BB후)', fmt(engMatTotal ? engMatTotal - engBBRefund : 0) + '원'],
             ['노무', fmt(engLabTotal) + '원'],

@@ -334,7 +334,7 @@ export default function NewQuote() {
                   })}
                 </div>
                 {store.height > 0 && (
-                  <div className="bg-[#f8fafc] rounded-lg p-3 grid grid-cols-3 gap-2.5">
+                  <div className="bg-[#f8fafc] rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                     {([
                       ['구조 타입', stType(store.height, '실전형'), ''],
                       ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],
@@ -407,7 +407,7 @@ export default function NewQuote() {
                       <p className="text-xs text-[#64748b]">방음벽 상단에 분진망을 설치하나요?</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     {[
                       { value: 0, label: '없음', tier: 0 },
                       { value: 1.0, label: '1.0M', tier: 1 },

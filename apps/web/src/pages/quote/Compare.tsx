@@ -109,7 +109,7 @@ export default function Compare() {
         <Stepper step={5} />
 
         {/* 상단 요약 */}
-        <div className="grid grid-cols-4 gap-2 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
           {[
             ['엔진 M당', fmt(engPerM) + '원/M'],
             ['응답 업체', rows.length + '개사'],
@@ -200,7 +200,7 @@ export default function Compare() {
                 🚨 엔진 기준 대비 +{rows[sel].dev}% — 매우 높음. 구조 변경 및 단가 상향 확인 필요.
               </div>
             )}
-            <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-3">
               {[['을 제출 M당', fmt(rows[sel].perM) + '원/M'], ['엔진 기준 M당', fmt(engPerM) + '원/M'], ['차이', (rows[sel].dev > 0 ? '+' : '') + rows[sel].dev + '%']].map(([l, v]) => (
                 <div key={l} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2 text-center">
                   <div className="text-[10px] text-[#94a3b8]">{l}</div>

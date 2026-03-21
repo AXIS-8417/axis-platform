@@ -114,12 +114,12 @@ export default function SealView() {
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-2">봉인 / 증빙</h1>
       <div className="text-xs mb-6" style={{ color: '#64748B' }}>SEALED 불변성 기반 증빙 관리 시스템</div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 overflow-x-auto flex-wrap">
         {TABS.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="px-4 py-2 rounded-lg text-sm"
             style={{
@@ -136,7 +136,7 @@ export default function SealView() {
       {activeTab === 'seals' && (
         <>
           {/* Seal Types */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             {(['SINGLE_SEAL', 'MUTUAL_SEAL', 'AUTO_SEAL'] as const).map(type => {
               const cfg = SEAL_TYPE_CONFIG[type];
               return (
@@ -304,7 +304,7 @@ export default function SealView() {
           {/* State Machine Diagram */}
           <div style={card} className="rounded-lg p-6 mb-6">
             <h2 className="text-sm font-bold mb-4" style={{ color: '#8B5CF6' }}>결제 상태 전이도</h2>
-            <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="flex items-center justify-center gap-4 mb-4 overflow-x-auto">
               <div className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#3B82F620', color: '#3B82F6', border: '1px solid #3B82F640' }}>
                 CREATED
               </div>

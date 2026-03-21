@@ -107,7 +107,7 @@ export default function RiskView() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <h1 className="text-xl font-bold mb-2">리스크 / TCI</h1>
         <div className="text-sm animate-pulse" style={{ color: '#64748B' }}>로딩 중...</div>
       </div>
@@ -115,12 +115,12 @@ export default function RiskView() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-2">리스크 / TCI</h1>
       <div className="text-xs mb-6" style={{ color: '#64748B' }}>PART259 - Trust & Compliance Index 엔진</div>
 
       {/* Status counts */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard label="NORMAL" value={counts.NORMAL} color={STATUS_COLORS.NORMAL} />
         <StatCard label="WATCH" value={counts.WATCH} color={STATUS_COLORS.WATCH} />
         <StatCard label="REINFORCED" value={counts.REINFORCED} color={STATUS_COLORS.REINFORCED} />
@@ -133,7 +133,7 @@ export default function RiskView() {
       </div>
 
       {/* Profiles */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {profiles.map((p, i) => {
           const total = p.contract + p.settlement + p.quality + p.safety;
           const tciColor = getTCIColor(total);

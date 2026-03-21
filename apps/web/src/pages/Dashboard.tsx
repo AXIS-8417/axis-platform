@@ -75,7 +75,7 @@ export default function Dashboard() {
 
       <div className="max-w-4xl mx-auto px-6 py-6">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
           <div className="axis-card text-center">
             <div className="text-2xl font-mono text-axis-teal font-bold">{estimates.length}</div>
             <div className="text-xs text-slate-500 mt-1">전체 견적</div>

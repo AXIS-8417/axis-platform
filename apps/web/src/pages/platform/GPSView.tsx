@@ -97,7 +97,7 @@ export default function GPSView() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <h1 className="text-xl font-bold mb-2">GPS 엔진</h1>
         <div className="text-sm animate-pulse" style={{ color: '#64748B' }}>로딩 중...</div>
       </div>
@@ -105,14 +105,14 @@ export default function GPSView() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-2">GPS 엔진</h1>
       <div className="text-xs mb-6" style={{ color: '#64748B' }}>PART258 - 자동전환 상태머신 기반 GPS 이벤트 타임라인</div>
 
       {/* Timeline */}
       <div style={card} className="rounded-lg p-6 mb-6">
         <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>이벤트 타임라인</h2>
-        <div className="flex items-center gap-1 mb-6">
+        <div className="flex items-center gap-1 mb-6 overflow-x-auto flex-wrap">
           {timeline.map((ev, i) => (
             <div key={i} className="flex items-center">
               <button
@@ -141,7 +141,7 @@ export default function GPSView() {
 
         {selected !== null && timeline[selected] && (
           <div style={elevated} className="rounded-lg p-4">
-            <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-xs" style={{ color: '#64748B' }}>이벤트</span>
                 <div className="font-bold" style={{ color: EVENT_COLORS[timeline[selected].type] }}>
@@ -167,7 +167,7 @@ export default function GPSView() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Auto Transition Conditions */}
         <div style={card} className="rounded-lg p-6">
           <h2 className="text-sm font-bold mb-4" style={{ color: '#F0A500' }}>자동 전환 조건 (6 Rules)</h2>

@@ -37,10 +37,10 @@ export default function ByeongGrade() {
   const progressPct = nextGrade ? Math.min(100, (totalWorks / nextGrade.minWorks) * 100) : 100;
   const remaining = nextGrade ? Math.max(0, nextGrade.minWorks - totalWorks) : 0;
 
-  if (loading) return <div className="p-8 text-center" style={{ color:'#64748B' }}>로딩 중...</div>;
+  if (loading) return <div className="p-4 md:p-8 text-center" style={{ color:'#64748B' }}>로딩 중...</div>;
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-6">R등급 현황</h1>
 
       {/* 현재 등급 + 진급 */}
@@ -75,7 +75,7 @@ export default function ByeongGrade() {
       )}
 
       {/* 전체 등급 표 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {GRADE_INFO.map(g => {
           const isCurrent = g.grade === currentGrade;
           const isPast = GRADE_INFO.indexOf(g) < currentIdx;

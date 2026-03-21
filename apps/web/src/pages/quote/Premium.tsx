@@ -168,7 +168,7 @@ export default function Premium() {
             </table>
           )}
           {tab === 'struct' && structP && structS && (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[{title:'실전형',data:structP,color:'#2563eb'},{title:'표준형',data:structS,color:'#d97706'}].map(({title,data,color})=>(
                 <div key={title}>
                   <h4 className="font-mono font-bold mb-3" style={{color}}>{title} — {data.overall}</h4>
@@ -183,7 +183,7 @@ export default function Premium() {
             </div>
           )}
           {tab === 'env' && envP && envS && (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[{title:'실전형',data:envP,color:'#2563eb'},{title:'표준형',data:envS,color:'#d97706'}].map(({title,data,color})=>(
                 <div key={title}>
                   <h4 className="font-mono font-bold mb-1" style={{color}}>{title} — {data.grade}</h4>

@@ -105,14 +105,14 @@ export default function PlatformDash() {
   }, []);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-2">AXIS Platform Dashboard</h1>
       <div className="text-xs mb-6" style={{ color: '#64748B' }}>
         실시간 현황 (마지막 갱신: {lastRefresh.toLocaleTimeString('ko-KR')})
       </div>
 
       {/* StatCards */}
-      <div className="grid grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <StatCard label="현장" value={stats.siteCount} color="#00D9CC" sub={`진행 ${stats.siteActive} / 완료 ${stats.siteComplete}`} />
         <StatCard label="작업지시" value={stats.workOrderCount} color="#22C55E" sub="전체 건수" />
         <StatCard label="장비" value={stats.equipCount} color="#8B5CF6" sub="등록 건수" />
@@ -120,7 +120,7 @@ export default function PlatformDash() {
         <StatCard label="정산" value={stats.billingTotal} color="#FF7849" sub="누적 (KRW)" />
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Left: 현장 현황 */}
         <div style={card} className="rounded-lg p-6">
           <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>현장 현황</h2>
@@ -171,7 +171,7 @@ export default function PlatformDash() {
       <div style={card} className="rounded-lg p-6 mb-8">
         <h2 className="text-sm font-bold mb-1" style={{ color: '#22C55E' }}>CANON v14 &mdash; 헌법적 원칙</h2>
         <div className="text-xs mb-4" style={{ color: '#64748B' }}>플랫폼이 절대 위반할 수 없는 6대 원칙</div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {CANON_V14.map((c, i) => (
             <div key={i} style={elevated} className="rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -190,7 +190,7 @@ export default function PlatformDash() {
       <div style={card} className="rounded-lg p-6 mb-8">
         <h2 className="text-sm font-bold mb-1" style={{ color: '#8B5CF6' }}>60 테이블 도메인 맵</h2>
         <div className="text-xs mb-4" style={{ color: '#64748B' }}>10개 도메인 · 60개 테이블 — 클릭하여 테이블 목록 확인</div>
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {DOMAIN_MAP.map((d, i) => (
             <div key={i}>
               <button

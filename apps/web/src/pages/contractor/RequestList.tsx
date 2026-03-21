@@ -71,7 +71,7 @@ export default function RequestList() {
         <p className="text-xs text-[#64748b] mb-4">갑이 발송한 견적요청 목록 · E블록 확인 후 제출</p>
 
         {/* 요약 */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-4">
           {[['신규', requests.filter(r => r.status === 'NEW').length + '건'], ['처리완료', requests.filter(r => r.status === 'QUOTED').length + '건'], ['반경', '50km']].map(([l, v]) => (
             <div key={l} className="bg-white border border-[#e2e8f0] rounded-lg p-2 text-center">
               <div className="text-[10px] text-[#94a3b8]">{l}</div>
