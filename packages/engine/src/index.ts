@@ -258,13 +258,180 @@ export function calcLabor(len: number, h: number, panel: string, span: number, i
 }
 
 // ══════════════════════════════════════════
-// 운반비
+// 장비비 (엑셀 modCalcEngine 로직)
+// 굴착기 대수/단가 + 스카이 + 5톤크레인 + 오가
 // ══════════════════════════════════════════
-export function calcTransport(dist: number, len: number, isBB: boolean) {
-  const trucks = Math.max(2, Math.ceil(len / 90));
-  const perTruck = Math.round(130000 + dist * 900);
+const EQUIP_PRICE = {
+  굴착기:     { day: 720000, half: 500000 },  // VAT 포함
+  스카이:     { day: 720000, half: 500000 },
+  '5톤크레인': { day: 720000, half: 500000 },
+  소형오가:   { day: 1210000, half: 1210000 },
+} as const;
+
+export interface EquipDetail {
+  items: { name: string; qty: number; price: number; amount: number }[];
+  total: number;
+}
+
+export function calcEquipment(h: number, panel: string, totalLen: number, foundPipeQty: number, isHBeam: boolean): EquipDetail {
+  const items: { name: string; qty: number; price: number; amount: number }[] = [];
+
+  // ── 굴착기 ──
+  let excavCnt = foundPipeQty > 0 ? Math.ceil(foundPipeQty / 200) : 1;
+  if (totalLen >= 1000) excavCnt += 1;
+  if (excavCnt === 0) excavCnt = 1;
+  const excavPrice = EQUIP_PRICE.굴착기.day;
+  items.push({ name: '굴착기', qty: excavCnt, price: excavPrice, amount: excavCnt * excavPrice });
+
+  // ── 스카이 (높이에 따라) ──
+  let needSky = false, skyLen = 0;
+  if (panel === '스틸' && h >= 4) { needSky = true; skyLen = 130 - (h - 4) * 20; }
+  else if (panel === 'RPP' && h >= 7) { needSky = true; skyLen = 150 - (h - 7) * 20; }
+  else if (panel === 'EGI' && h > 4) { needSky = true; skyLen = 150 - (h - 5) * 20; }
+  if (skyLen < 10) skyLen = 10;
+
+  if (needSky && skyLen > 0) {
+    const skyCnt = Math.ceil(totalLen / skyLen);
+    const skyPrice = EQUIP_PRICE.스카이.day;
+    items.push({ name: '스카이', qty: skyCnt, price: skyPrice, amount: skyCnt * skyPrice });
+  }
+
+  // ── 5톤크레인 (RPP H≥7) ──
+  if (panel === 'RPP' && h >= 7) {
+    let craneLen = 150 - (h - 7) * 20;
+    if (craneLen < 10) craneLen = 10;
+    const craneCnt = Math.ceil(totalLen / craneLen);
+    const cranePrice = EQUIP_PRICE['5톤크레인'].day;
+    items.push({ name: '5톤크레인', qty: craneCnt, price: cranePrice, amount: craneCnt * cranePrice });
+  }
+
+  // ── 오가 (H빔 구조) ──
+  // H빔 수량은 BOM에서 별도로 관리 — 여기서는 isHBeam 플래그만 사용
+  // H빔 시공 시 오가 필수: 일일작업량 일반=45본, 암반=12본
+  if (isHBeam) {
+    const ogaDays = Math.max(1, Math.ceil(totalLen / 3 / 45)); // 약 3M 간격
+    const ogaPrice = EQUIP_PRICE.소형오가.day;
+    items.push({ name: '소형오가', qty: ogaDays, price: ogaPrice, amount: ogaDays * ogaPrice });
+  }
+
+  const total = items.reduce((s, it) => s + it.amount, 0);
+  return { items, total };
+}
+
+// ══════════════════════════════════════════
+// 자재 단위무게/부피 마스터 (엑셀 통합데이터 S/T열)
+// ══════════════════════════════════════════
+// key = "품명|규격" or "품명" (규격 없으면)
+// value = [kg, m3]
+const UNIT_WEIGHT: Record<string, [number, number]> = {
+  // 주주파이프 (대표 규격별)
+  '주주파이프|3M': [7.86, 0.001], '주주파이프|4M': [10.48, 0.00133],
+  '주주파이프|5M': [13.1, 0.00166], '주주파이프|6M': [15.72, 0.00199],
+  // 횡대파이프
+  '횡대파이프|6M': [15.72, 0.00199], '횡대파이프': [15.72, 0.00199],
+  // 지주파이프 (대표)
+  '지주파이프|3M': [7.86, 0.001], '지주파이프|4M': [10.48, 0.00133],
+  '지주파이프|5M': [13.1, 0.00166], '지주파이프': [7.86, 0.001],
+  // 기초파이프
+  '기초파이프|1.5M': [3.93, 0.0005], '기초파이프|2.0M': [5.24, 0.00066],
+  '기초파이프|2.5M': [6.55, 0.00083], '기초파이프|3.0M': [7.86, 0.001],
+  '기초파이프': [5.24, 0.00066],
+  // RPP 판넬 (높이별)
+  'RPP|2M': [7.6, 0.0402], 'RPP|3M': [11.4, 0.0603], 'RPP|4M': [15.2, 0.0804],
+  'RPP|5M': [19, 0.1005], 'RPP|6M': [22.8, 0.1206], 'RPP|7M': [26.6, 0.1407],
+  'RPP|8M': [30.4, 0.1608], 'RPP': [15.2, 0.0804],
+  // 스틸 판넬 (장당 0.5M)
+  '스틸': [14, 0.0297],
+  // EGI 판넬
+  'EGI|1.8M': [3.88, 0.0005], 'EGI|2.4M': [5.18, 0.00066],
+  'EGI|3.0M': [6.47, 0.00083], 'EGI|4.0M': [8.63, 0.0011],
+  'EGI': [6.47, 0.00083],
+  // 클램프/부자재
+  '고정클램프': [0.45, 0.0001], '자동클램프': [0.61, 0.0001],
+  '연결핀': [0.2, 0], '양개조이너': [0.15, 0],
+  '후크볼트': [0.05, 0], '분진망': [12, 0.04],
+};
+
+function getUnitWV(name: string, h: number): [number, number] {
+  const key = `${name}|${Math.floor(h)}M`;
+  return UNIT_WEIGHT[key] ?? UNIT_WEIGHT[name] ?? [5, 0.005];
+}
+
+// ══════════════════════════════════════════
+// 운반비 (v3 — 엑셀 modTransport_v3_patch 동일)
+// 8종 차량, 무게/부피 기반 대수, 3구간 단가, 만원 절상
+// ══════════════════════════════════════════
+const VEHICLES = [
+  { name: '24톤', maxKg: 24000, maxM3: 60 },
+  { name: '11톤', maxKg: 14000, maxM3: 45 },
+  { name: '5톤축', maxKg: 12000, maxM3: 40 },
+  { name: '5톤',  maxKg: 8500,  maxM3: 35 },
+  { name: '3.5톤', maxKg: 4500, maxM3: 30 },
+  { name: '2.5톤', maxKg: 2500, maxM3: 20 },
+  { name: '1.4톤', maxKg: 1500, maxM3: 15 },
+  { name: '1톤',  maxKg: 1100,  maxM3: 8 },
+] as const;
+
+const VEHICLE_RATIO: Record<string, number> = {
+  '1톤': 0.5, '1.4톤': 0.5, '2.5톤': 0.68, '3.5톤': 0.86,
+  '5톤': 1.0, '5톤축': 1.1, '11톤': 1.55, '24톤': 2.0,
+};
+
+// 5톤 기준 단가 (3구간 공식)
+function calc5tonPrice(dist: number): number {
+  let price: number;
+  if (dist <= 30) price = 140000;
+  else if (dist <= 80) price = 220000 + 1000 * (dist - 30);
+  else price = 205000 + 620 * dist;
+  // 만원 단위 절상
+  return Math.ceil(price / 10000) * 10000;
+}
+
+export interface TransportDetail {
+  vehicle: string; trucks: number; perTruck: number; trips: number; total: number;
+  totalWeight: number; totalVolume: number;
+}
+
+export function calcTransport(dist: number, len: number, isBB: boolean, bomItems?: { name: string; qty: number; h?: number }[]): TransportDetail {
   const trips = isBB ? 2 : 1;
-  return { trucks, perTruck, total: Math.round(trucks * perTruck * trips / 1000) * 1000 };
+
+  // BOM 아이템이 없으면 기존 간이 방식 폴백
+  if (!bomItems || bomItems.length === 0) {
+    const base5 = calc5tonPrice(dist);
+    const trucks = Math.max(2, Math.ceil(len / 90));
+    const total = Math.ceil(trucks * base5 * trips / 10000) * 10000;
+    return { vehicle: '5톤', trucks, perTruck: base5, trips, total, totalWeight: 0, totalVolume: 0 };
+  }
+
+  // 총 무게/부피 합산
+  let totalWeight = 0, totalVolume = 0;
+  for (const it of bomItems) {
+    const [w, v] = getUnitWV(it.name, it.h ?? 3);
+    totalWeight += it.qty * w;
+    totalVolume += it.qty * v;
+  }
+
+  // 5톤 기준 단가
+  const base5 = calc5tonPrice(dist);
+
+  // 8종 차량 중 최저 비용 선택
+  let bestVehicle = '5톤', bestQty = 999, bestRate = base5, bestCost = Infinity;
+
+  for (const v of VEHICLES) {
+    const qW = v.maxKg > 0 ? Math.ceil(totalWeight / v.maxKg) : 999;
+    const qV = v.maxM3 > 0 ? Math.ceil(totalVolume / v.maxM3) : 999;
+    const qty = Math.max(1, Math.max(qW, qV));
+    const ratio = VEHICLE_RATIO[v.name] ?? 1.0;
+    let rate = Math.round(base5 * ratio);
+    rate = Math.ceil(rate / 10000) * 10000; // 만원 절상
+    const cost = qty * rate * trips;
+    if (cost < bestCost) {
+      bestVehicle = v.name; bestQty = qty; bestRate = rate; bestCost = cost;
+    }
+  }
+
+  const total = Math.ceil(bestCost / 10000) * 10000;
+  return { vehicle: bestVehicle, trucks: bestQty, perTruck: bestRate, trips, total, totalWeight, totalVolume };
 }
 
 // ══════════════════════════════════════════
@@ -345,6 +512,8 @@ export interface EstimateResult {
   totalPerM: number; minVal: number; maxVal: number;
   pctMat: number; pctLab: number; pctEqp: number; pctTrans: number;
   matM: number; labM: number; monthlyRent: number; dailyRent: number;
+  transDetail: TransportDetail;
+  eqpDetail: EquipDetail;
   bom: any; laborDetail: any; design: any;
 }
 
@@ -389,10 +558,16 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     rentTotal += amt * getRentRate(it.bbKey || it.name);
   }
 
-  const eqpTotal = MISC_PRICE.굴착기;
+  // ── 장비비 (엑셀 modCalcEngine 로직) ──
+  const eqp = calcEquipment(input.h, input.panel, L, bom.gichoQty, design.isHBeam);
+  const eqpTotal = eqp.total;
+
   const labor = calcLabor(L, input.h, input.panel, design.span, isBB, dustH, design.isHBeam);
   const labTotal = labor.total;
-  const trans = calcTransport(reg.dist, L, isBB);
+
+  // ── 운반비 (BOM 무게/부피 기반) ──
+  const bomItems = items.map(it => ({ name: it.bbKey || it.name, qty: it.qty, h: input.h }));
+  const trans = calcTransport(reg.dist, L, isBB, bomItems);
   const transTotal = trans.total;
   const gateResult = calcGate(opts.gate, opts.doorGrade, opts.doorW, input.h, opts.doorMesh);
   const gateTotal = gateResult.total;
@@ -410,7 +585,6 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   return {
     matTotal, labTotal, eqpTotal, transTotal, gateTotal,
-    transDetail: trans,
     bbRefund: bbRefund + gateBBRefund, bbRate: matTotal > 0 ? bbRefund / matTotal : 0,
     subtotal, total, rounded,
     totalPerM: Math.round(total / L),
@@ -422,6 +596,8 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     pctEqp: subtotal > 0 ? Math.round(eqpTotal / subtotal * 100) : 0,
     pctTrans: subtotal > 0 ? Math.round(transTotal / subtotal * 100) : 0,
     monthlyRent: Math.round(rentTotal), dailyRent: Math.round(rentTotal / 30),
+    transDetail: trans,
+    eqpDetail: eqp,
     bom, laborDetail: labor, design,
   };
 }

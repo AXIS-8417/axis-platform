@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import { exportQuotesToExcel, type QuoteSlotData, type ExportRow } from '../../lib/quoteExcelExport';
 
 const REGION_DB: Record<string, {Vo:number}> = {
   서울:{Vo:26},경기북부:{Vo:26},경기남부:{Vo:26},경기서해안:{Vo:28},인천:{Vo:28},
@@ -179,21 +180,28 @@ export default function Premium() {
                   </tr>
                   {gyeongbiOpen && (
                     <>
-                      <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
-                        <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ 굴착기(0.4m³) 1대</td>
-                        <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pR.eqpTotal || 0)}원</td>
-                        <td className="text-right font-mono text-xs text-[#64748b]">{fmt(sR.eqpTotal || 0)}원</td>
-                      </tr>
+                      {/* 장비 상세 (eqpDetail.items) */}
+                      {(pR.eqpDetail?.items || [{ name: '굴착기', qty: 1, amount: pR.eqpTotal || 0 }]).map((eq: any, ei: number) => {
+                        const sEq = (sR.eqpDetail?.items || [])[ei];
+                        return (
+                          <tr key={`eq${ei}`} className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ {eq.name} {eq.qty}대 × {fmt(eq.price || 0)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(eq.amount)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(sEq?.amount || eq.amount)}원</td>
+                          </tr>
+                        );
+                      })}
+                      {/* 운반 상세 (transDetail) */}
                       {pTrans.trucks > 0 && (
                         <>
                           <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
-                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ 5t카고 {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (편도)</td>
+                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (편도)</td>
                             <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
                             <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
                           </tr>
                           {isBB && (
                             <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
-                              <td className="py-1.5 pl-4 text-xs text-[#64748b]">└ 5t카고 {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (복로-바이백)</td>
+                              <td className="py-1.5 pl-4 text-xs text-[#64748b]">└ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (복로-바이백)</td>
                               <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
                               <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
                             </tr>
@@ -208,6 +216,21 @@ export default function Premium() {
                   ].map(([label, p, s], i) => (
                     <tr key={`b${i}`} className={`border-b border-[#e5e7eb]/30 ${(label as string) === '총액' ? 'font-bold' : ''}`}><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
                   ))}
+                  {/* 기한후 월/일사용료 */}
+                  {(pR.monthlyRent > 0 || sR.monthlyRent > 0) && (
+                    <>
+                      <tr className="border-b border-[#e5e7eb]/30">
+                        <td className="py-2 text-[#0066CC]">기한후 월사용료</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(pR.monthlyRent)}원/월</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(sR.monthlyRent)}원/월</td>
+                      </tr>
+                      <tr className="border-b border-[#e5e7eb]/30">
+                        <td className="py-2 text-[#0066CC]">기한후 일사용료</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(pR.dailyRent)}원/일</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(sR.dailyRent)}원/일</td>
+                      </tr>
+                    </>
+                  )}
                 </tbody>
               </table>
             );
@@ -260,6 +283,71 @@ export default function Premium() {
           <button onClick={()=>navigate(`/quote/level/${id}`)} className="flex-1 py-3 rounded-lg bg-[#2563eb] text-[#f8fafc] font-bold hover:bg-[#2563eb]/80">실전형 선택</button>
           <button onClick={()=>navigate(`/quote/level/${id}`)} className="flex-1 py-3 rounded-lg border border-[#d97706] text-[#d97706] font-bold hover:bg-[#d97706]/10">표준형 선택</button>
         </div>
+
+        {/* Excel 다운로드 */}
+        {practical?.result && standard?.result && (
+          <button
+            onClick={() => {
+              const buildRows = (data: any): ExportRow[] => {
+                const r = data.result;
+                const d = data.design;
+                const rows: ExportRow[] = [];
+                // 자재 BOM
+                if (r.bom) {
+                  const bomEntries = [
+                    { name: panel + '방음판', qty: r.bom.panelQty, cat: 'mat' as const },
+                    { name: '주주파이프', qty: r.bom.juju, cat: 'mat' as const },
+                    { name: '횡대파이프', qty: r.bom.hwCnt, cat: 'mat' as const },
+                    { name: '지주파이프', qty: r.bom.jiuju, cat: 'mat' as const },
+                    { name: '기초파이프', qty: r.bom.gichoQty, cat: 'mat' as const },
+                    { name: '고정클램프', qty: r.bom.gojung, cat: 'mat' as const },
+                    { name: '자동클램프', qty: r.bom.jadong, cat: 'mat' as const },
+                    { name: '연결핀', qty: r.bom.pin, cat: 'mat' as const },
+                  ].filter(b => b.qty > 0);
+                  for (const b of bomEntries) {
+                    rows.push({ name: b.name, spec: '', unit: 'EA', qty: b.qty, price: 0, amount: 0, finalAmount: 0, assetType: '', basis: '', category: b.cat });
+                  }
+                }
+                // 노무비
+                if (r.laborDetail) {
+                  if (r.laborDetail.installTotal > 0) rows.push({ name: '설치비', spec: '', unit: '식', qty: 1, price: r.laborDetail.installTotal, amount: r.laborDetail.installTotal, finalAmount: r.laborDetail.installTotal, assetType: '', basis: `${len}m`, category: 'labor' });
+                  if (r.laborDetail.removeTotal > 0) rows.push({ name: '해체비', spec: '', unit: '식', qty: 1, price: r.laborDetail.removeTotal, amount: r.laborDetail.removeTotal, finalAmount: r.laborDetail.removeTotal, assetType: '', basis: `${len}m`, category: 'labor' });
+                }
+                // 장비
+                for (const eq of (r.eqpDetail?.items || [{ name: '굴착기', qty: 1, price: r.eqpTotal, amount: r.eqpTotal }])) {
+                  rows.push({ name: eq.name, spec: '', unit: '대', qty: eq.qty, price: eq.price, amount: eq.amount, finalAmount: eq.amount, assetType: '', basis: '', category: 'equip' });
+                }
+                // 운반
+                if (r.transDetail?.trucks > 0) {
+                  rows.push({ name: `${r.transDetail.vehicle || '5톤'} 카고트럭`, spec: '', unit: '대', qty: r.transDetail.trucks, price: r.transDetail.perTruck, amount: r.transTotal, finalAmount: r.transTotal, assetType: '', basis: `${r.transDetail.trips}회`, category: 'trans' });
+                }
+                // 기한후 월사용료
+                if (r.monthlyRent > 0) {
+                  rows.push({ name: '기한후 월사용료', spec: '계약만료 후', unit: '월', qty: 1, price: r.monthlyRent, amount: r.monthlyRent, finalAmount: r.monthlyRent, assetType: '', basis: '품목별 월대여료율', category: 'rent' });
+                }
+                return rows;
+              };
+
+              const makeSlot = (label: string, data: any, mode: string): QuoteSlotData => ({
+                label, panel, height: h, length: len, asset: '전체고재', contract: '바이백',
+                mode, span: data.design?.span || 3, bbMonths,
+                matTotal: data.result.matTotal, labTotal: data.result.labTotal,
+                eqpTotal: data.result.eqpTotal, transTotal: data.result.transTotal,
+                gateTotal: data.result.gateTotal || 0, bbRefund: data.result.bbRefund,
+                total: data.result.total, totalPerM: data.result.totalPerM,
+                monthlyRent: data.result.monthlyRent || 0, dailyRent: data.result.dailyRent || 0,
+                rows: buildRows(data),
+              });
+
+              exportQuotesToExcel([
+                makeSlot('견적1-실전형', practical, '실전형'),
+                makeSlot('견적2-표준형', standard, '표준형'),
+              ], '', new Date().toISOString().slice(0, 10));
+            }}
+            className="w-full py-3 rounded-lg border border-[#334155] text-[#94A3B8] font-bold hover:bg-[#111B2A] mb-6">
+            📥 Excel 내역서 다운로드
+          </button>
+        )}
 
         <div className="text-xs text-[#94a3b8] bg-[#ffffff] rounded-lg p-4 border border-[#e5e7eb]">⚠ 구조판정/환경판정은 참고용이며 실제 구조설계가 아닙니다.</div>
       </div>

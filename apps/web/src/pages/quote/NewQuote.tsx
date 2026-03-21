@@ -40,9 +40,11 @@ function scaleFn(l: number) {
   return SCALE[SCALE.length - 1];
 }
 
+// ★ 횡대 단수 확정 테이블 (사용자 확인 완료 2026-03-21)
+// 6M 표준형=5단(보너스 없음!), 1~3M 표준형=실전형과 동일
 const XBAR: Record<string, Record<number, number>> = {
   실전형: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 7, 10: 7 },
-  표준형: { 1: 3, 2: 3, 3: 4, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 8, 10: 8 },
+  표준형: { 1: 2, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 7, 8: 8, 9: 8, 10: 8 },
 };
 
 function stType(h: number, mode: string) {
