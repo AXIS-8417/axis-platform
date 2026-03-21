@@ -11,46 +11,120 @@ export const REGION_DB: Record<string, { Vo: number; dist: number; rc: number }>
 };
 
 // ══════════════════════════════════════════
-// 자재 단가 (엑셀 단가관리 실제값)
+// 자재 단가 — 엑셀 통합데이터 마스터 완전 반영
 // ══════════════════════════════════════════
-// EGI 높이별 단가 (설계서 9.4)
+
+// ── 파이프 규격별 단가 (통합데이터 N~R열, 16개 규격) ──
+const PIPE_SPEC_PRICE: Record<string, { 신재: number; 고재: number; kg: number; cbm: number }> = {
+  '1.5M×2.3T': { 신재: 5300, 고재: 4500, kg: 3.93, cbm: 0.0005 },
+  '1.5M×1.8T': { 신재: 4000, 고재: 0,    kg: 3.14, cbm: 0.0004 },
+  '1.8M×2.3T': { 신재: 6300, 고재: 5200, kg: 4.72, cbm: 0.0006 },
+  '1.8M×1.8T': { 신재: 4700, 고재: 0,    kg: 3.77, cbm: 0.00048 },
+  '2.0M×2.3T': { 신재: 6900, 고재: 5800, kg: 5.24, cbm: 0.00066 },
+  '2.0M×1.8T': { 신재: 5200, 고재: 0,    kg: 4.19, cbm: 0.00053 },
+  '2.4M×2.3T': { 신재: 8200, 고재: 6800, kg: 6.29, cbm: 0.0008 },
+  '2.4M×1.8T': { 신재: 6100, 고재: 0,    kg: 5.03, cbm: 0.00064 },
+  '3.0M×2.3T': { 신재: 10200, 고재: 8400, kg: 7.86, cbm: 0.001 },
+  '3.0M×1.8T': { 신재: 7500, 고재: 0,    kg: 6.29, cbm: 0.0008 },
+  '4.0M×2.3T': { 신재: 13400, 고재: 11000, kg: 10.48, cbm: 0.00133 },
+  '4.0M×1.8T': { 신재: 9800, 고재: 0,    kg: 8.38, cbm: 0.00106 },
+  '5.0M×2.3T': { 신재: 16600, 고재: 13700, kg: 13.1, cbm: 0.00166 },
+  '5.0M×1.8T': { 신재: 12200, 고재: 0,    kg: 10.48, cbm: 0.00133 },
+  '6.0M×2.3T': { 신재: 19300, 고재: 15800, kg: 15.72, cbm: 0.00199 },
+  '6.0M×1.8T': { 신재: 14000, 고재: 0,    kg: 12.58, cbm: 0.00159 },
+};
+
+// 파이프 종류별 규격 결정 (VBA GetAutoSpec 로직)
+function getPipeSpec(pipeType: string, h: number, gichoLen: number | null): string {
+  const t = '2.3T'; // 기본 두께
+  if (pipeType === '횡대파이프') return `6.0M×${t}`;
+  if (pipeType === '기초파이프') {
+    const len = gichoLen ?? 1.5;
+    return `${len.toFixed(1)}M×${t}`;
+  }
+  if (pipeType === '주주파이프') {
+    // 주주 길이 = 높이 (+ 분진망 높이는 BOM에서 별도 처리)
+    const postLen = h <= 1.5 ? 1.5 : h <= 1.8 ? 1.8 : h <= 2 ? 2.0 : h <= 2.4 ? 2.4 : h <= 3 ? 3.0 : h <= 4 ? 4.0 : h <= 5 ? 5.0 : 6.0;
+    return `${postLen.toFixed(1)}M×${t}`;
+  }
+  if (pipeType === '지주파이프') {
+    // 지주 = 높이에 따라 (4M→3M, 5M→4M, 나머지=높이)
+    const jiLen = h <= 2 ? 2.0 : h <= 3 ? 3.0 : h <= 4 ? 3.0 : h <= 5 ? 4.0 : h <= 6 ? 5.0 : 6.0;
+    return `${jiLen.toFixed(1)}M×${t}`;
+  }
+  return `3.0M×${t}`; // 폴백
+}
+
+export function getPipePrice(pipeType: string, grade: '신재' | '고재', h: number, gichoLen: number | null): number {
+  const spec = getPipeSpec(pipeType, h, gichoLen);
+  const data = PIPE_SPEC_PRICE[spec];
+  if (!data) return 10000; // 폴백
+  const price = data[grade];
+  if (price === 0 && grade === '고재') return data.신재; // 1.8T 고재 없으면 신재가
+  return price;
+}
+
+export function getPipeWeight(pipeType: string, h: number, gichoLen: number | null): { kg: number; cbm: number } {
+  const spec = getPipeSpec(pipeType, h, gichoLen);
+  const data = PIPE_SPEC_PRICE[spec];
+  return data ? { kg: data.kg, cbm: data.cbm } : { kg: 10, cbm: 0.001 };
+}
+
+// ── 판넬 단가 (높이별 — 엑셀 통합데이터) ──
+const RPP_PRICE: Record<string, Record<number, number>> = {
+  신재: { 2: 10000, 3: 15000, 4: 20000, 5: 25000, 6: 30000, 7: 35000, 8: 40000, 9: 45000, 10: 50000 },
+  고재: { 2: 5500, 3: 8300, 4: 11000, 5: 13800, 6: 16500, 7: 19300, 8: 22000, 9: 24800, 10: 27500 },
+};
 const EGI_PRICE_BY_H: Record<string, Record<number, number>> = {
   신재: { 1: 7000, 2: 11000, 3: 16500, 4: 22000, 5: 9000, 6: 9000, 7: 9000, 8: 9000, 9: 9000, 10: 9000 },
   고재: { 1: 4000, 2: 4400, 3: 6700, 4: 12000, 5: 3000, 6: 3000, 7: 3000, 8: 3000, 9: 3000, 10: 3000 },
 };
-// 1.4M→1, 1.8M→2 매핑 (EGI 소수점 높이)
+export const PANEL_PRICE: Record<string, Record<string, number>> = {
+  '스틸': { 신재: 21000, 고재: 15000 },  // ★ 고재 15,000 (5,000→수정)
+  RPP:   { 신재: 15000, 고재: 8300 },   // 기본값 (높이별은 getPanelPrice)
+  EGI:   { 신재: 9000,  고재: 3000 },
+};
+
 function egiPriceKey(h: number): number {
   if (h <= 1.4) return 1;
   if (h <= 2) return 2;
   if (h <= 3) return 3;
   if (h <= 4) return 4;
-  return Math.floor(h); // 5M+ 이어붙임
+  return Math.floor(h);
 }
 
-export const PANEL_PRICE: Record<string, Record<string, number>> = {
-  '스틸': { 신재: 21000, 고재: 5000 },
-  RPP:   { 신재: 28000, 고재: 8300 },
-  EGI:   { 신재: 9000,  고재: 3000 },  // 기본값, 높이별은 getPanelPrice에서
-};
-
-// 높이 반영 판넬 단가
-export function getPanelPrice(panel: string, grade: '신재'|'고재', h: number): number {
+export function getPanelPrice(panel: string, grade: '신재' | '고재', h: number): number {
+  if (panel === 'RPP') {
+    const hKey = Math.max(2, Math.min(10, Math.floor(h)));
+    return RPP_PRICE[grade]?.[hKey] ?? PANEL_PRICE.RPP[grade] ?? 8300;
+  }
   if (panel === 'EGI') {
     const key = egiPriceKey(h);
     return EGI_PRICE_BY_H[grade]?.[key] ?? PANEL_PRICE.EGI[grade] ?? 3000;
   }
   return (PANEL_PRICE[panel] ?? {})[grade] ?? 5000;
 }
-export const PIPE_PRICE: Record<string, Record<string, number>> = {
-  주주파이프: { 신재: 15800, 고재: 11000 },
-  횡대파이프: { 신재: 15800, 고재: 15800 },
-  지주파이프: { 신재: 8400,  고재: 8400 },
-  기초파이프: { 신재: 4500,  고재: 4500 },
+
+// ── 클램프/부자재 단가 (고재/신재 구분 — 엑셀 통합데이터) ──
+export const CLAMP_PRICE: Record<string, Record<string, number>> = {
+  고정클램프: { 신재: 1800, 고재: 1200 },
+  자동클램프: { 신재: 1900, 고재: 1300 },
+  싱글클램프: { 신재: 1200, 고재: 1200 },
+  연결핀:     { 신재: 1200, 고재: 900 },
 };
 export const MISC_PRICE: Record<string, number> = {
-  고정클램프: 1800, 자동클램프: 1900, 연결핀: 1200,
-  분진망: 15000, 굴착기: 715000,
-  양개조이너: 0, 후크볼트: 200,
+  분진망: 15000, 굴착기: 720000,
+  양개조이너: 400, 후크볼트: 150,  // ★ 엑셀 실제값 반영
+  베이스판: 4000, 세트앙카: 2500, 전산볼트: 3000,
+  'H-BAR': 15000,
+};
+
+// 하위호환용 (기존 코드가 PIPE_PRICE 참조하는 곳 대비)
+export const PIPE_PRICE: Record<string, Record<string, number>> = {
+  주주파이프: { 신재: 10200, 고재: 8400 },  // 3M 기준 기본값
+  횡대파이프: { 신재: 19300, 고재: 15800 },
+  지주파이프: { 신재: 10200, 고재: 8400 },
+  기초파이프: { 신재: 5300, 고재: 4500 },
 };
 
 // ══════════════════════════════════════════
@@ -395,19 +469,31 @@ const VEHICLES = [
   { name: '1톤',  maxKg: 1100,  maxM3: 8 },
 ] as const;
 
+// 김포기준 편도단가 (엑셀 김포기준단가 시트)
+const KIMPO_BASE: Record<string, number> = {
+  '1톤': 70000, '1.4톤': 70000, '2.5톤': 100000, '3.5톤': 120000,
+  '5톤': 140000, '5톤축': 160000, '11톤': 220000, '24톤': 280000,
+};
+
 const VEHICLE_RATIO: Record<string, number> = {
   '1톤': 0.5, '1.4톤': 0.5, '2.5톤': 0.68, '3.5톤': 0.86,
   '5톤': 1.0, '5톤축': 1.1, '11톤': 1.55, '24톤': 2.0,
 };
 
-// 5톤 기준 단가 (3구간 공식)
+// 5톤 기준 단가 (3구간 공식 — 운반요율 테이블 미등록 지역 폴백)
 function calc5tonPrice(dist: number): number {
   let price: number;
   if (dist <= 30) price = 140000;
   else if (dist <= 80) price = 220000 + 1000 * (dist - 30);
   else price = 205000 + 620 * dist;
-  // 만원 단위 절상
   return Math.ceil(price / 10000) * 10000;
+}
+
+// 차량별 단가 계산 (김포기준 × 거리비율)
+function calcVehiclePrice(vehicleName: string, dist: number): number {
+  const base5 = calc5tonPrice(dist);
+  const ratio = VEHICLE_RATIO[vehicleName] ?? 1.0;
+  return Math.ceil(base5 * ratio / 10000) * 10000;
 }
 
 export interface TransportDetail {
@@ -437,16 +523,14 @@ export function calcTransport(dist: number, len: number, isBB: boolean, bomItems
   // 5톤 기준 단가
   const base5 = calc5tonPrice(dist);
 
-  // 8종 차량 중 최저 비용 선택
+  // 8종 차량 중 최저 비용 선택 (★ v3: 차량별 개별 단가)
   let bestVehicle = '5톤', bestQty = 999, bestRate = base5, bestCost = Infinity;
 
   for (const v of VEHICLES) {
     const qW = v.maxKg > 0 ? Math.ceil(totalWeight / v.maxKg) : 999;
     const qV = v.maxM3 > 0 ? Math.ceil(totalVolume / v.maxM3) : 999;
     const qty = Math.max(1, Math.max(qW, qV));
-    const ratio = VEHICLE_RATIO[v.name] ?? 1.0;
-    let rate = Math.round(base5 * ratio);
-    rate = Math.ceil(rate / 10000) * 10000; // 만원 절상
+    const rate = calcVehiclePrice(v.name, dist);
     const cost = qty * rate * trips;
     if (cost < bestCost) {
       bestVehicle = v.name; bestQty = qty; bestRate = rate; bestCost = cost;
@@ -566,16 +650,17 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   const bom = calcBOM(L, input.h, input.panel, design, dustN);
 
-  // 자재비 + BB차감 (단가는 priceGrade, BB는 bbGrade)
+  // 자재비 + BB차감 (★ v3: 파이프=규격별 단가, 클램프=고재/신재 구분)
+  const cg = getPriceGrade('clamp', input.asset); // 클램프 단가 등급
   const items = [
     { name: input.panel, qty: bom.panelQty, price: getPanelPrice(input.panel, pg, input.h), bbGrade: bbPG, bbKey: input.panel },
-    { name: '주주파이프', qty: bom.juju, price: PIPE_PRICE.주주파이프[pig], bbGrade: bbPiG, bbKey: '주주파이프' },
-    { name: '횡대파이프', qty: bom.hwCnt, price: PIPE_PRICE.횡대파이프[pig], bbGrade: bbPiG, bbKey: '횡대파이프' },
-    { name: '지주파이프', qty: bom.jiuju, price: PIPE_PRICE.지주파이프[pig], bbGrade: bbPiG, bbKey: '지주파이프' },
-    { name: '기초파이프', qty: bom.gichoQty, price: PIPE_PRICE.기초파이프['고재'], bbGrade: '고재' as const, bbKey: '기초파이프' },
-    { name: '고정클램프', qty: bom.gojung, price: MISC_PRICE.고정클램프, bbGrade: bbCG, bbKey: '고정클램프' },
-    { name: '자동클램프', qty: bom.jadong, price: MISC_PRICE.자동클램프, bbGrade: bbCG, bbKey: '자동클램프' },
-    { name: '연결핀', qty: bom.pin, price: MISC_PRICE.연결핀, bbGrade: bbCG, bbKey: '연결핀' },
+    { name: '주주파이프', qty: bom.juju, price: getPipePrice('주주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '주주파이프' },
+    { name: '횡대파이프', qty: bom.hwCnt, price: getPipePrice('횡대파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '횡대파이프' },
+    { name: '지주파이프', qty: bom.jiuju, price: getPipePrice('지주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '지주파이프' },
+    { name: '기초파이프', qty: bom.gichoQty, price: getPipePrice('기초파이프', '고재', input.h, design.gichoLength), bbGrade: '고재' as const, bbKey: '기초파이프' },
+    { name: '고정클램프', qty: bom.gojung, price: CLAMP_PRICE.고정클램프[cg], bbGrade: bbCG, bbKey: '고정클램프' },
+    { name: '자동클램프', qty: bom.jadong, price: CLAMP_PRICE.자동클램프[cg], bbGrade: bbCG, bbKey: '자동클램프' },
+    { name: '연결핀', qty: bom.pin, price: CLAMP_PRICE.연결핀[cg], bbGrade: bbCG, bbKey: '연결핀' },
     { name: '분진망', qty: bom.dustRolls, price: MISC_PRICE.분진망, bbGrade: '신재' as const, bbKey: '분진망' },
     { name: bom.specialName, qty: bom.specialQty, price: bom.specialPrice, bbGrade: bbCG, bbKey: bom.specialName || '' },
   ].filter(i => i.qty > 0);
