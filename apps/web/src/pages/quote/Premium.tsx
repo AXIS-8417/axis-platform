@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
 import { exportQuotesToExcel, type QuoteSlotData, type ExportRow } from '../../lib/quoteExcelExport';
+import {
+  makeDesign, calcEstimate, getDustTier,
+  REGION_DB as ENGINE_REGION_DB,
+  type QuoteInput, type CalcOpts,
+} from '@axis/engine';
 
 const REGION_DB: Record<string, {Vo:number}> = {
   서울:{Vo:26},경기북부:{Vo:26},경기남부:{Vo:26},경기서해안:{Vo:28},인천:{Vo:28},
@@ -72,24 +76,28 @@ export default function Premium() {
   const len = store.length || 160;
   const floor = store.floorType || '파이프박기';
 
-  const fetchPremium = async () => {
+  // 엔진 직접 계산 (API 불필요)
+  useEffect(() => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data } = await api.get('/api/engine/premium', {
-        params: { len, panel, h, region, floor, bbMonths, asset: '전체고재', contract: '바이백', dustH: store.dustH || 0 },
-      });
-      setPractical(data['실전형']); setStandard(data['표준형']);
-    } catch {} finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchPremium(); }, [bbMonths]);
+      const dH = store.dustH || 0;
+      const dustN = getDustTier(dH);
+      const input: QuoteInput = { region, len, panel, h, floor, asset: '전체고재' as any, contract: '바이백' };
+      const opts: CalcOpts = { bbMonths, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: dH };
+      const dJ = makeDesign(h, floor, panel, false, dustN);
+      const dP = makeDesign(h, floor, panel, true, dustN);
+      setPractical({ design: dJ, result: calcEstimate(input, dJ, opts) });
+      setStandard({ design: dP, result: calcEstimate(input, dP, opts) });
+    } catch (e) { console.error('엔진 계산 오류:', e); }
+    finally { setLoading(false); }
+  }, [bbMonths, h, panel, region, len, floor]);
 
   const regionData = REGION_DB[region] || { Vo: 26 };
 
-  const structP = practical?.design ? calcStructure(regionData.Vo, h, practical.design.span, practical.design.embedM, panel) : null;
-  const structS = standard?.design ? calcStructure(regionData.Vo, h, standard.design.span, standard.design.embedM, panel) : null;
-  const envP = practical?.design ? calcEnvironment(panel, h, '실전형', practical.design.found, practical.design.embedM) : null;
-  const envS = standard?.design ? calcEnvironment(panel, h, '표준형', standard.design.found, standard.design.embedM) : null;
+  const structP = practical?.design ? calcStructure(regionData.Vo, h, practical.design.span, practical.design.gichoLength ?? 1.5, panel) : null;
+  const structS = standard?.design ? calcStructure(regionData.Vo, h, standard.design.span, standard.design.gichoLength ?? 2.0, panel) : null;
+  const envP = practical?.design ? calcEnvironment(panel, h, '실전형', practical.design.found, practical.design.gichoLength ?? 1.5) : null;
+  const envS = standard?.design ? calcEnvironment(panel, h, '표준형', standard.design.found, standard.design.gichoLength ?? 2.0) : null;
 
   const statusColor = (s: string) => s === 'PASS' ? 'text-[#10b981]' : s === 'WARN' ? 'text-[#d97706]' : 'text-[#ef4444]';
   const barColor = (s: string) => s === 'PASS' ? 'bg-[#10b981]' : s === 'WARN' ? 'bg-[#d97706]' : 'bg-[#ef4444]';
