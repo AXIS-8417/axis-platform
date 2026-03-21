@@ -1,18 +1,20 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import api from '../../lib/api';
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('ko-KR');
 
-// 데모 데이터 (실제로는 API에서)
-function useDemoData(engPerM: number, length: number) {
-  return useMemo(() => [
-    { name: 'A사(주호건설)', track: '정식', perM: Math.round(engPerM * 0.97), total: Math.round(engPerM * 0.97 * length), spanMode: '3.0M', specChanged: false, dev: -3, memo: '' },
-    { name: 'B사(NS기업)', track: '간편', perM: Math.round(engPerM * 1.12), total: Math.round(engPerM * 1.12 * length), spanMode: '2.5M', specChanged: true, dev: 12, memo: '경간 좁힘' },
-    { name: 'C사(엔진승인)', track: '엔진승인', perM: engPerM, total: engPerM * length, spanMode: '3.0M', specChanged: false, dev: 0, memo: '' },
-    { name: 'D사(파주업체)', track: '간편', perM: Math.round(engPerM * 1.38), total: Math.round(engPerM * 1.38 * length), spanMode: '2.0M', specChanged: true, dev: 38, memo: '경간 2.0M' },
-  ], [engPerM, length]);
+interface CompareRow {
+  name: string;
+  track: string;
+  perM: number;
+  total: number;
+  spanMode: string;
+  specChanged: boolean;
+  dev: number;
+  memo: string;
 }
 
 function getStatus(dv: number) {
@@ -22,14 +24,76 @@ function getStatus(dv: number) {
   return { label: 'ℹ 낮음', color: '#0369a1', bg: '#e0f2fe', bar: '#10b981' };
 }
 
+const DEMO_ROWS: CompareRow[] = [
+  { name: 'A사(주호건설)', track: '정식', perM: 48500, total: 12125000, spanMode: '3.0M', specChanged: false, dev: -3, memo: '' },
+  { name: 'B사(NS기업)', track: '간편', perM: 56000, total: 14000000, spanMode: '2.5M', specChanged: true, dev: 12, memo: '경간 좁힘' },
+  { name: 'C사(엔진승인)', track: '엔진승인', perM: 50000, total: 12500000, spanMode: '3.0M', specChanged: false, dev: 0, memo: '' },
+  { name: 'D사(파주업체)', track: '간편', perM: 69000, total: 17250000, spanMode: '2.0M', specChanged: true, dev: 38, memo: '경간 2.0M' },
+];
+
 export default function Compare() {
   const { id } = useParams<{ id: string }>();
   const store = useQuoteStore();
   const length = store.length || 250;
-  const engPerM = 50000; // 실제로는 API에서
 
-  const rows = useDemoData(engPerM, length);
+  const [rows, setRows] = useState<CompareRow[]>([]);
+  const [engPerM, setEngPerM] = useState(50000);
   const [sel, setSel] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) { setRows(DEMO_ROWS); setLoading(false); return; }
+
+    // Try to get comparison data from API
+    api.post(`/api/estimates/${id}/compare`)
+      .then(r => {
+        const data = r.data;
+        if (data.enginePerM) setEngPerM(data.enginePerM);
+        const mapped: CompareRow[] = (data.comparisons || data.rows || []).map((c: any) => ({
+          name: c.contractorName || c.name || c.contractor?.company || '-',
+          track: c.responseType || c.track || '정식',
+          perM: c.perM || c.pricePerM || 0,
+          total: c.totalPrice || c.total || 0,
+          spanMode: c.spanMode || c.span || '3.0M',
+          specChanged: c.specChanged ?? false,
+          dev: c.deviationPercent ?? c.dev ?? 0,
+          memo: c.specChangeLog || c.memo || '',
+        }));
+        if (mapped.length > 0) {
+          setRows(mapped);
+        } else {
+          // Fallback: get raw responses
+          return api.get(`/api/estimates/${id}/responses`).then(res => {
+            const responses = Array.isArray(res.data) ? res.data : res.data?.items || [];
+            const basePerM = data.enginePerM || engPerM;
+            setRows(responses.map((resp: any) => {
+              const pm = resp.pricePerM || resp.totalPrice / (length || 1);
+              const deviation = basePerM > 0 ? Math.round(((pm - basePerM) / basePerM) * 100) : 0;
+              return {
+                name: resp.contractor?.company || resp.contractorName || resp.companyName || '-',
+                track: resp.responseType || '정식',
+                perM: Math.round(pm),
+                total: Math.round(resp.totalPrice || pm * length),
+                spanMode: resp.spanMode || '3.0M',
+                specChanged: resp.specChanged ?? false,
+                dev: deviation,
+                memo: resp.memo || '',
+              };
+            }));
+          });
+        }
+      })
+      .catch(() => setRows(DEMO_ROWS))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="text-sm text-[#94a3b8] animate-pulse">비교 데이터 로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: "'Noto Sans KR',sans-serif" }}>
@@ -49,8 +113,8 @@ export default function Compare() {
           {[
             ['엔진 M당', fmt(engPerM) + '원/M'],
             ['응답 업체', rows.length + '개사'],
-            ['최저가', fmt(Math.min(...rows.map(r => r.perM))) + '원/M'],
-            ['최고가', fmt(Math.max(...rows.map(r => r.perM))) + '원/M'],
+            ['최저가', rows.length > 0 ? fmt(Math.min(...rows.map(r => r.perM))) + '원/M' : '-'],
+            ['최고가', rows.length > 0 ? fmt(Math.max(...rows.map(r => r.perM))) + '원/M' : '-'],
           ].map(([l, v]) => (
             <div key={l} className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2 text-center">
               <div className="text-[10px] text-[#94a3b8]">{l}</div>
@@ -123,7 +187,7 @@ export default function Compare() {
         </div>
 
         {/* 선택된 업체 상세 */}
-        {sel !== null && (
+        {sel !== null && rows[sel] && (
           <div className="bg-white border-2 border-[#2563eb] rounded-xl p-5 mb-4">
             <div className="font-bold text-[14px] text-[#1e40af] mb-3">상세 검증 — {rows[sel].name}</div>
             {rows[sel].specChanged && (

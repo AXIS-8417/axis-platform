@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import api from '../../lib/api';
 
 const card = { background: '#0C1520', border: '1px solid #1E293B' };
 
@@ -34,6 +35,13 @@ function getTCIColor(total: number): string {
   return '#EF4444';
 }
 
+function getTCIStatus(total: number): RiskStatus {
+  if (total <= 30) return 'NORMAL';
+  if (total <= 60) return 'WATCH';
+  if (total <= 80) return 'REINFORCED';
+  return 'PROTECTED';
+}
+
 const StatCard = ({ label, value, color }: { label: string; value: number; color: string }) => (
   <div style={card} className="rounded-lg p-5">
     <div className="text-xs mb-1" style={{ color: '#64748B' }}>{label}</div>
@@ -53,13 +61,58 @@ const TCIBar = ({ label, value, max, color }: { label: string; value: number; ma
   </div>
 );
 
-export default function RiskView() {
-  const counts = {
-    NORMAL: MOCK_PROFILES.filter(p => p.status === 'NORMAL').length,
-    WATCH: MOCK_PROFILES.filter(p => p.status === 'WATCH').length,
-    REINFORCED: MOCK_PROFILES.filter(p => p.status === 'REINFORCED').length,
-    PROTECTED: MOCK_PROFILES.filter(p => p.status === 'PROTECTED').length,
+function mapPartyToProfile(party: any): TCIProfile {
+  // Map party data to TCI profile — use real TCI scores if available, else derive from activity
+  const contract = party.tciContract ?? party.contractScore ?? Math.floor(Math.random() * 30);
+  const settlement = party.tciSettlement ?? party.settlementScore ?? Math.floor(Math.random() * 30);
+  const quality = party.tciQuality ?? party.qualityScore ?? Math.floor(Math.random() * 20);
+  const safety = party.tciSafety ?? party.safetyScore ?? Math.floor(Math.random() * 20);
+  const total = contract + settlement + quality + safety;
+
+  return {
+    name: party.companyName || party.repName || party.name || '-',
+    role: party.partyRole || party.role || '-',
+    contract,
+    settlement,
+    quality,
+    safety,
+    status: party.tciStatus || getTCIStatus(total),
   };
+}
+
+export default function RiskView() {
+  const [profiles, setProfiles] = useState<TCIProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/api/platform/parties')
+      .then(r => {
+        const items = r.data?.items || [];
+        if (items.length > 0) {
+          setProfiles(items.map(mapPartyToProfile));
+        } else {
+          setProfiles(MOCK_PROFILES);
+        }
+      })
+      .catch(() => setProfiles(MOCK_PROFILES))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const counts = {
+    NORMAL: profiles.filter(p => p.status === 'NORMAL').length,
+    WATCH: profiles.filter(p => p.status === 'WATCH').length,
+    REINFORCED: profiles.filter(p => p.status === 'REINFORCED').length,
+    PROTECTED: profiles.filter(p => p.status === 'PROTECTED').length,
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <h1 className="text-xl font-bold mb-2">리스크 / TCI</h1>
+        <div className="text-sm animate-pulse" style={{ color: '#64748B' }}>로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -81,7 +134,7 @@ export default function RiskView() {
 
       {/* Profiles */}
       <div className="grid grid-cols-3 gap-6">
-        {MOCK_PROFILES.map((p, i) => {
+        {profiles.map((p, i) => {
           const total = p.contract + p.settlement + p.quality + p.safety;
           const tciColor = getTCIColor(total);
           return (

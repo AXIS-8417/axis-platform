@@ -565,7 +565,7 @@ app.get('/api/estimates/:id/responses', {
 });
 
 // ── Update Response Status ───────────────────────────────────
-app.patch('/estimates/:estimateId/responses/:responseId', {
+app.patch('/api/estimates/:estimateId/responses/:responseId', {
   preHandler: [app.authenticate],
 }, async (request: FastifyRequest, reply: FastifyReply) => {
   const { responseId } = request.params as any;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import api from '../../lib/api';
 
 const card = { background: '#0C1520', border: '1px solid #1E293B' };
 const elevated = { background: '#111B2A', border: '1px solid #1E293B' };
@@ -11,102 +12,148 @@ const StatCard = ({ label, value, color, sub }: { label: string; value: string |
   </div>
 );
 
-const SITES = [
-  { name: '\ud30c\uc8fc OO\uc544\ud30c\ud2b8 \uac00\uc124\uc6b8\ud0c0\ub9ac', panel: 'RPP', len: 160, progress: 72 },
-  { name: '\uc218\uc6d0 OO\ud604\uc7a5 \uac00\uc2dc\uc124', panel: 'CLP', len: 240, progress: 45 },
-  { name: '\uc778\ucc9c OO\ud604\uc7a5 \ubc29\uc74c\ubca1', panel: 'SNB', len: 80, progress: 100 },
-];
-
 const ARCH_LINKS = [
-  { code: 'PART258', label: 'GPS \uc5d4\uc9c4', desc: '\uc790\ub3d9\uc804\ud658 \uc0c1\ud0dc\uba38\uc2e0', color: '#00D9CC' },
-  { code: 'PART259', label: '\ub9ac\uc2a4\ud06c/TCI', desc: '\uc2e0\ub8b0\uc9c0\uc218 \uc5d4\uc9c4', color: '#F0A500' },
-  { code: 'PART263', label: '\uac74\uc124\uae30\uacc4', desc: '\uc7a5\ube44 \ubc30\ucc28\xb7\uc815\uc0b0', color: '#8B5CF6' },
-  { code: '\uc0c1\ud0dc\uba38\uc2e0', label: '\ubd09\uc778\xb7\uc99d\ube59', desc: 'SEALED \ubd88\ubcc0 \uc99d\ube59', color: '#3B82F6' },
+  { code: 'PART258', label: 'GPS 엔진', desc: '자동전환 상태머신', color: '#00D9CC' },
+  { code: 'PART259', label: '리스크/TCI', desc: '신뢰지수 엔진', color: '#F0A500' },
+  { code: 'PART263', label: '건설기계', desc: '장비 배차·정산', color: '#8B5CF6' },
+  { code: '상태머신', label: '봉인·증빙', desc: 'SEALED 불변 증빙', color: '#3B82F6' },
 ];
 
 const CANON_V14 = [
-  { icon: '\ud83d\udd12', label: '\uae30\ub85d \uc911\uc2ec', desc: '\uc633\uace0 \uadf8\ub984\uc744 \ub9d0\ud558\uc9c0 \uc54a\uace0 \uc0ac\uc2e4\ub9cc \uae30\ub85d', color: '#22C55E' },
-  { icon: '\u26a1', label: '\ud310\ub2e8 \ubc30\uc81c', desc: '\uacb0\ub860\xb7\ucd94\ucc9c\xb7\uadc0\ucc45 \ud310\ub2e8 \uc808\ub300 \ubd88\uac00', color: '#F0A500' },
-  { icon: '\ud83d\udd17', label: '\ubd09\uc778 \ubd88\ubcc0', desc: 'SEALED \ub808\ucf54\ub4dc\ub294 \uc218\uc815\xb7\uc0ad\uc81c\xb7\uc120\ubcc4 \uc804\ubd80 \ubd88\uac00', color: '#EF4444' },
-  { icon: '\ud83d\udc65', label: '3\uc790 \ud22c\uba85', desc: '\uac11\xb7\uc744\xb7\ubcd1 \ubaa8\ub4e0 \uae30\ub85d\uc740 \uad8c\ud55c \ubc94\uc704 \ub0b4 \uc0c1\ud638 \uc870\ud68c', color: '#3B82F6' },
-  { icon: '\u23f1', label: '72h \uaddc\uce59', desc: '\uc124\uacc4\ubcc0\uacbd \ubb34\uc751\ub2f5 \u2192 DISAGREEMENT \uc790\ub3d9 \uc804\uc774', color: '#8B5CF6' },
-  { icon: '\ud83d\udce6', label: '\uc99d\ube59 \ub2e8\uc704', desc: '\uc678\ubd80 \uc81c\uacf5\uc740 EVIDENCE_PKG_ID \ub2e8\uc704\ub9cc', color: '#00D9CC' },
+  { icon: '🔒', label: '기록 중심', desc: '옳고 그름을 말하지 않고 사실만 기록', color: '#22C55E' },
+  { icon: '⚡', label: '판단 배제', desc: '결론·추천·귀책 판단 절대 불가', color: '#F0A500' },
+  { icon: '🔗', label: '봉인 불변', desc: 'SEALED 레코드는 수정·삭제·선별 전부 불가', color: '#EF4444' },
+  { icon: '👥', label: '3자 투명', desc: '갑·을·병 모든 기록은 권한 범위 내 상호 조회', color: '#3B82F6' },
+  { icon: '⏱', label: '72h 규칙', desc: '설계변경 무응답 → DISAGREEMENT 자동 전이', color: '#8B5CF6' },
+  { icon: '📦', label: '증빙 단위', desc: '외부 제공은 EVIDENCE_PKG_ID 단위만', color: '#00D9CC' },
 ];
 
 const DOMAIN_MAP: { domain: string; color: string; count: number; tables: string[] }[] = [
-  { domain: '\uae30\uc900\xb7\ub9c8\uc2a4\ud130', color: '#00D9CC', count: 6, tables: ['00_\uad8c\ud55c\ub9e4\ud2b8\ub9ad\uc2a4', '01_\ucf54\ub4dc\ub9c8\uc2a4\ud130', '02_\uacf5\ud1b5\uc124\uc815', '03_\uc5ed\ud560\uc815\uc758', '04_\uc54c\ub9bc\uc124\uc815', '05_\uc2dc\uc2a4\ud15c\ucf54\ub4dc'] },
-  { domain: '\uc8fc\uccb4\xb7\uc0ac\uc6a9\uc790', color: '#22C55E', count: 5, tables: ['03_\uc8fc\uccb4\ubaa9\ub85d', '04_\uc0ac\uc6a9\uc790\ubaa9\ub85d', '05_\uad8c\ud55c\uadf8\ub8f9', '06_\uc778\uc99d\ub85c\uadf8', '07_\uc138\uc158\uad00\ub9ac'] },
-  { domain: '\ud604\uc7a5\xb7\uc124\uacc4', color: '#3B82F6', count: 5, tables: ['08_\ud604\uc7a5\ub9c8\uc2a4\ud130', '09_\uc124\uacc4\ubcc0\uacbd', '10_\ub3c4\uba74\uad00\ub9ac', '11_\uacf5\uc815\uad00\ub9ac', '12_\ud604\uc7a5\uc124\uc815'] },
-  { domain: '\ub2e8\uac00\xb7\uacac\uc801', color: '#F0A500', count: 5, tables: ['13_\ub2e8\uac00\ub9c8\uc2a4\ud130', '14_\uacac\uc801\uc11c', '15_\uacac\uc801\ud56d\ubaa9', '16_\ub2e8\uac00\uc774\ub825', '17_\uc2b9\uc778\ub85c\uadf8'] },
-  { domain: '\uc791\uc5c5\xb7\ud638\ucd9c', color: '#8B5CF6', count: 4, tables: ['18_\uc791\uc5c5\uc9c0\uc2dc', '19_\ud638\ucd9c\ub9e4\uce6d', '20_\uc7a5\ube44\ubc30\ucc28', '21_\uc791\uc5c5\uc774\ub825'] },
-  { domain: '\uc77c\ubcf4\xb7\uc7a0\uae08', color: '#FF7849', count: 6, tables: ['22_\uc2dc\uacf5\uc77c\ubcf4', '23_\uc77c\ubcf4\ud56d\ubaa9', '24_\ubd09\uc778\ub85c\uadf8', '25_\uc7a0\uae08\uc0c1\ud0dc', '26_\ubd09\uc778\uac80\uc99d', '27_\ubd09\uc778\uc774\ub825'] },
-  { domain: '\ubcf4\ud5d8\xb7\uc99d\ube59', color: '#EF4444', count: 6, tables: ['28_\ubcf4\ud5d8\ub9c8\uc2a4\ud130', '29_\uc99d\ube59\ud328\ud0a4\uc9c0', '30_\uc99d\ube59\ud56d\ubaa9', '31_\uac10\uc0ac\ub85c\uadf8', '32_\ubcf4\ud5d8\uc0c1\ud0dc', '33_\ubcf4\ud5d8\uc774\ub825'] },
-  { domain: '\uc790\uc7ac\xb7\uac8c\uc774\ud2b8', color: '#14B8A6', count: 7, tables: ['34_\uc790\uc7ac\ub9c8\uc2a4\ud130', '35_\uc790\uc7ac\uc785\ucd9c', '36_\uac8c\uc774\ud2b8\ub9c8\uc2a4\ud130', '37_\uac8c\uc774\ud2b8\uc774\ubca4\ud2b8', '38_\uc7ac\uace0\uc774\ub825', '39_\uc785\ucd9c\ub85c\uadf8', '40_\uc790\uc7ac\uc694\uccad'] },
-  { domain: '\uc815\uc0b0\xb7\uacb0\uc81c', color: '#EC4899', count: 7, tables: ['41_\uccad\uad6c\uc11c', '42_\ubc14\uc774\ubc31', '43_\uc6d4\uc784\ub300', '44_\uacb0\uc81c\ub9c8\uc2a4\ud130', '45_\uacb0\uc81c\uc0c1\ud0dc', '46_\uc815\uc0b0\uc774\ub825', '47_\uc815\uc0b0\uac80\uc99d'] },
-  { domain: '\uc548\uc804\xb7\uacc4\uc57d', color: '#A855F7', count: 6, tables: ['48_\uc548\uc804\uc810\uac80', '49_\uc0ac\uace0\uae30\ub85d', '50_\uacc4\uc57d\ub9c8\uc2a4\ud130', '51_\uacc4\uc57d\uc870\uac74', '52_\uacc4\uc57d\uc0c1\ud0dc', '53_\uacc4\uc57d\uc774\ub825'] },
+  { domain: '기준·마스터', color: '#00D9CC', count: 6, tables: ['00_권한매트릭스', '01_코드마스터', '02_공통설정', '03_역할정의', '04_알림설정', '05_시스템코드'] },
+  { domain: '주체·사용자', color: '#22C55E', count: 5, tables: ['03_주체목록', '04_사용자목록', '05_권한그룹', '06_인증로그', '07_세션관리'] },
+  { domain: '현장·설계', color: '#3B82F6', count: 5, tables: ['08_현장마스터', '09_설계변경', '10_도면관리', '11_공정관리', '12_현장설정'] },
+  { domain: '단가·견적', color: '#F0A500', count: 5, tables: ['13_단가마스터', '14_견적서', '15_견적항목', '16_단가이력', '17_승인로그'] },
+  { domain: '작업·호출', color: '#8B5CF6', count: 4, tables: ['18_작업지시', '19_호출매칭', '20_장비배차', '21_작업이력'] },
+  { domain: '일보·잠금', color: '#FF7849', count: 6, tables: ['22_시공일보', '23_일보항목', '24_봉인로그', '25_잠금상태', '26_봉인검증', '27_봉인이력'] },
+  { domain: '보험·증빙', color: '#EF4444', count: 6, tables: ['28_보험마스터', '29_증빙패키지', '30_증빙항목', '31_감사로그', '32_보험상태', '33_보험이력'] },
+  { domain: '자재·게이트', color: '#14B8A6', count: 7, tables: ['34_자재마스터', '35_자재입출', '36_게이트마스터', '37_게이트이벤트', '38_재고이력', '39_입출로그', '40_자재요청'] },
+  { domain: '정산·결제', color: '#EC4899', count: 7, tables: ['41_청구서', '42_바이백', '43_월임대', '44_결제마스터', '45_결제상태', '46_정산이력', '47_정산검증'] },
+  { domain: '안전·계약', color: '#A855F7', count: 6, tables: ['48_안전점검', '49_사고기록', '50_계약마스터', '51_계약조건', '52_계약상태', '53_계약이력'] },
 ];
 
 const TECH_LAYERS = [
-  { layer: 'UI', desc: 'React + Tailwind + \ub2e4\ud06c\ud14c\ub9c8', color: '#00D9CC' },
-  { layer: 'API', desc: 'Express REST + JWT \uc778\uc99d', color: '#3B82F6' },
-  { layer: 'State Machine', desc: '\ubd09\uc778\xb7\uc815\uc0b0\xb7\ud638\ucd9c \uc0c1\ud0dc\uc804\uc774', color: '#F0A500' },
-  { layer: 'Data', desc: 'PostgreSQL 60\ud14c\uc774\ube14 + Redis \uce90\uc2dc', color: '#22C55E' },
-  { layer: 'GPS Engine', desc: '\uc704\uce58\uae30\ubc18 \uc790\ub3d9\uc804\ud658 \uc5d4\uc9c4', color: '#8B5CF6' },
-  { layer: 'PG Integration', desc: '\uacb0\uc81c \uac8c\uc774\ud2b8\uc6e8\uc774 \uc5f0\ub3d9', color: '#EC4899' },
-  { layer: 'Gate Engine', desc: '\uc790\uc7ac \uc785\ucd9c\xb7\uac8c\uc774\ud2b8 \uad00\ub9ac', color: '#14B8A6' },
+  { layer: 'UI', desc: 'React + Tailwind + 다크테마', color: '#00D9CC' },
+  { layer: 'API', desc: 'Fastify REST + JWT 인증', color: '#3B82F6' },
+  { layer: 'State Machine', desc: '봉인·정산·호출 상태전이', color: '#F0A500' },
+  { layer: 'Data', desc: 'PostgreSQL 60테이블 + Prisma ORM', color: '#22C55E' },
+  { layer: 'GPS Engine', desc: '위치기반 자동전환 엔진', color: '#8B5CF6' },
+  { layer: 'PG Integration', desc: '결제 게이트웨이 연동', color: '#EC4899' },
+  { layer: 'Gate Engine', desc: '자재 입출·게이트 관리', color: '#14B8A6' },
 ];
 
-export default function PlatformDash() {
-  const [tick, setTick] = useState(0);
-  const [expandedDomain, setExpandedDomain] = useState<number | null>(null);
+interface DashStats {
+  siteCount: number;
+  siteActive: number;
+  siteComplete: number;
+  workOrderCount: number;
+  equipCount: number;
+  sealCount: number;
+  billingTotal: string;
+}
 
-  useEffect(() => { const t = setInterval(() => setTick(v => v + 1), 60000); return () => clearInterval(t); }, []);
+export default function PlatformDash() {
+  const [expandedDomain, setExpandedDomain] = useState<number | null>(null);
+  const [stats, setStats] = useState<DashStats>({
+    siteCount: 0, siteActive: 0, siteComplete: 0,
+    workOrderCount: 0, equipCount: 0, sealCount: 0, billingTotal: '0',
+  });
+  const [sites, setSites] = useState<any[]>([]);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  useEffect(() => {
+    // Fetch all stats in parallel
+    Promise.allSettled([
+      api.get('/api/platform/sites'),
+      api.get('/api/platform/work-orders'),
+      api.get('/api/platform/equipment'),
+      api.get('/api/platform/seals'),
+      api.get('/api/platform/billings'),
+    ]).then(([sitesR, woR, equipR, sealsR, billR]) => {
+      const siteItems = sitesR.status === 'fulfilled' ? (sitesR.value.data?.items || []) : [];
+      const woItems = woR.status === 'fulfilled' ? (woR.value.data?.items || woR.value.data?.data || []) : [];
+      const equipItems = equipR.status === 'fulfilled' ? (equipR.value.data?.items || equipR.value.data?.data || []) : [];
+      const sealItems = sealsR.status === 'fulfilled' ? (sealsR.value.data?.items || []) : [];
+      const billItems = billR.status === 'fulfilled' ? (billR.value.data?.items || []) : [];
+
+      const totalBilling = billItems.reduce((sum: number, b: any) => sum + (Number(b.amount) || 0), 0);
+      const formatBilling = totalBilling >= 1000000
+        ? (totalBilling / 1000000).toFixed(1) + 'M'
+        : totalBilling.toLocaleString();
+
+      setSites(siteItems.slice(0, 5));
+      setStats({
+        siteCount: siteItems.length,
+        siteActive: siteItems.filter((s: any) => s.status !== 'COMPLETED' && s.status !== '완료').length,
+        siteComplete: siteItems.filter((s: any) => s.status === 'COMPLETED' || s.status === '완료').length,
+        workOrderCount: woItems.length,
+        equipCount: equipItems.length,
+        sealCount: sealItems.length,
+        billingTotal: formatBilling,
+      });
+      setLastRefresh(new Date());
+    });
+  }, []);
 
   return (
     <div className="p-8">
       <h1 className="text-xl font-bold mb-2">AXIS Platform Dashboard</h1>
       <div className="text-xs mb-6" style={{ color: '#64748B' }}>
-        \uc2e4\uc2dc\uac04 \ud604\ud669 (\ub9c8\uc9c0\ub9c9 \uac31\uc2e0: {new Date().toLocaleTimeString('ko-KR')})
+        실시간 현황 (마지막 갱신: {lastRefresh.toLocaleTimeString('ko-KR')})
       </div>
 
       {/* StatCards */}
       <div className="grid grid-cols-5 gap-4 mb-8">
-        <StatCard label="\ud604\uc7a5" value={3} color="#00D9CC" sub="\uc9c4\ud589 2 / \uc644\ub8cc 1" />
-        <StatCard label="\uc791\uc5c5\uc9c0\uc2dc" value={3} color="#22C55E" sub="\uae08\uc77c \ubc30\uc815" />
-        <StatCard label="\uc7a5\ube44" value={2} color="#8B5CF6" sub="\uac00\ub3d9\uc911" />
-        <StatCard label="\ubd09\uc778" value={3} color="#F0A500" sub="SEALED \uac74\uc218" />
-        <StatCard label="\uc815\uc0b0" value="11.6M" color="#FF7849" sub="\uc774\ubc88\ub2ec \ub204\uc801 (KRW)" />
+        <StatCard label="현장" value={stats.siteCount} color="#00D9CC" sub={`진행 ${stats.siteActive} / 완료 ${stats.siteComplete}`} />
+        <StatCard label="작업지시" value={stats.workOrderCount} color="#22C55E" sub="전체 건수" />
+        <StatCard label="장비" value={stats.equipCount} color="#8B5CF6" sub="등록 건수" />
+        <StatCard label="봉인" value={stats.sealCount} color="#F0A500" sub="SEALED 건수" />
+        <StatCard label="정산" value={stats.billingTotal} color="#FF7849" sub="누적 (KRW)" />
       </div>
 
       <div className="grid grid-cols-2 gap-6 mb-8">
-        {/* Left: \ud604\uc7a5 \ud604\ud669 */}
+        {/* Left: 현장 현황 */}
         <div style={card} className="rounded-lg p-6">
-          <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>\ud604\uc7a5 \ud604\ud669</h2>
+          <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>현장 현황</h2>
           <div className="space-y-4">
-            {SITES.map((s, i) => (
-              <div key={i}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium">{s.name}</span>
-                  <span className="text-xs font-mono" style={{ color: '#64748B' }}>{s.panel} \xb7 {s.len}m</span>
+            {sites.length > 0 ? sites.map((s: any, i: number) => {
+              const progress = s.progress || (s.status === 'COMPLETED' || s.status === '완료' ? 100 : 50);
+              return (
+                <div key={s.siteId || i}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium">{s.siteName || s.name || `현장 ${i + 1}`}</span>
+                    <span className="text-xs font-mono" style={{ color: '#64748B' }}>{s.panelType || '-'} · {s.length || '-'}m</span>
+                  </div>
+                  <div className="w-full rounded-full h-2" style={{ background: '#1E293B' }}>
+                    <div className="h-2 rounded-full" style={{
+                      width: `${progress}%`,
+                      background: progress === 100 ? '#64748B' : progress >= 70 ? '#22C55E' : '#F0A500',
+                    }} />
+                  </div>
+                  <div className="text-right text-xs mt-1" style={{ color: progress === 100 ? '#64748B' : '#94A3B8' }}>
+                    {progress}%{progress === 100 ? ' (완료)' : ''}
+                  </div>
                 </div>
-                <div className="w-full rounded-full h-2" style={{ background: '#1E293B' }}>
-                  <div className="h-2 rounded-full" style={{
-                    width: `${s.progress}%`,
-                    background: s.progress === 100 ? '#64748B' : s.progress >= 70 ? '#22C55E' : '#F0A500',
-                  }} />
-                </div>
-                <div className="text-right text-xs mt-1" style={{ color: s.progress === 100 ? '#64748B' : '#94A3B8' }}>
-                  {s.progress}%{s.progress === 100 ? ' (\uc644\ub8cc)' : ''}
-                </div>
-              </div>
-            ))}
+              );
+            }) : (
+              <div className="text-sm" style={{ color: '#64748B' }}>등록된 현장이 없습니다.</div>
+            )}
           </div>
         </div>
 
         {/* Right: Architecture */}
         <div className="space-y-6">
           <div style={card} className="rounded-lg p-6">
-            <h2 className="text-sm font-bold mb-4" style={{ color: '#F0A500' }}>\uc544\ud0a4\ud14d\ucc98</h2>
+            <h2 className="text-sm font-bold mb-4" style={{ color: '#F0A500' }}>아키텍처</h2>
             <div className="grid grid-cols-2 gap-3">
               {ARCH_LINKS.map((a, i) => (
                 <div key={i} style={elevated} className="rounded-lg p-3">
@@ -122,8 +169,8 @@ export default function PlatformDash() {
 
       {/* CANON v14 */}
       <div style={card} className="rounded-lg p-6 mb-8">
-        <h2 className="text-sm font-bold mb-1" style={{ color: '#22C55E' }}>CANON v14 &mdash; \ud5cc\ubc95\uc801 \uc6d0\uce59</h2>
-        <div className="text-xs mb-4" style={{ color: '#64748B' }}>\ud50c\ub7ab\ud3fc\uc774 \uc808\ub300 \uc704\ubc18\ud560 \uc218 \uc5c6\ub294 6\ub300 \uc6d0\uce59</div>
+        <h2 className="text-sm font-bold mb-1" style={{ color: '#22C55E' }}>CANON v14 &mdash; 헌법적 원칙</h2>
+        <div className="text-xs mb-4" style={{ color: '#64748B' }}>플랫폼이 절대 위반할 수 없는 6대 원칙</div>
         <div className="grid grid-cols-3 gap-4">
           {CANON_V14.map((c, i) => (
             <div key={i} style={elevated} className="rounded-lg p-4">
@@ -139,10 +186,10 @@ export default function PlatformDash() {
         </div>
       </div>
 
-      {/* 60 \ud14c\uc774\ube14 \ub3c4\uba54\uc778 \ub9f5 */}
+      {/* 60 테이블 도메인 맵 */}
       <div style={card} className="rounded-lg p-6 mb-8">
-        <h2 className="text-sm font-bold mb-1" style={{ color: '#8B5CF6' }}>60 \ud14c\uc774\ube14 \ub3c4\uba54\uc778 \ub9f5</h2>
-        <div className="text-xs mb-4" style={{ color: '#64748B' }}>10\uac1c \ub3c4\uba54\uc778 \xb7 60\uac1c \ud14c\uc774\ube14 \u2014 \ud074\ub9ad\ud558\uc5ec \ud14c\uc774\ube14 \ubaa9\ub85d \ud655\uc778</div>
+        <h2 className="text-sm font-bold mb-1" style={{ color: '#8B5CF6' }}>60 테이블 도메인 맵</h2>
+        <div className="text-xs mb-4" style={{ color: '#64748B' }}>10개 도메인 · 60개 테이블 — 클릭하여 테이블 목록 확인</div>
         <div className="grid grid-cols-5 gap-3">
           {DOMAIN_MAP.map((d, i) => (
             <div key={i}>
@@ -156,7 +203,7 @@ export default function PlatformDash() {
                 }}
               >
                 <div className="text-xs font-bold" style={{ color: d.color }}>{d.domain}</div>
-                <div className="text-xs mt-1" style={{ color: '#64748B' }}>{d.count}\uac1c \ud14c\uc774\ube14</div>
+                <div className="text-xs mt-1" style={{ color: '#64748B' }}>{d.count}개 테이블</div>
               </button>
               {expandedDomain === i && (
                 <div className="mt-2 rounded-lg p-3 space-y-1" style={{ background: '#0A1018', border: `1px solid ${d.color}30` }}>
@@ -170,9 +217,9 @@ export default function PlatformDash() {
         </div>
       </div>
 
-      {/* \uae30\uc220 \uc2a4\ud0dd \ub808\uc774\uc5b4 */}
+      {/* 기술 스택 레이어 */}
       <div style={card} className="rounded-lg p-6">
-        <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>\uae30\uc220 \uc2a4\ud0dd \ub808\uc774\uc5b4</h2>
+        <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>기술 스택 레이어</h2>
         <div className="space-y-2">
           {TECH_LAYERS.map((t, i) => (
             <div key={i} className="flex items-center gap-4 rounded-lg p-3" style={elevated}>

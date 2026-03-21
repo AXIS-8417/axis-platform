@@ -32,7 +32,8 @@ export default function LevelSelect() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await api.put(`/api/estimates/${id}/request`, {
+      await api.put(`/api/estimates/${id}`, {
+        status: 'REQUESTED',
         disclosureLevel: selected,
         selectedCellKey: store.selectedCellKey,
         bbMonths: store.bbMonths,
