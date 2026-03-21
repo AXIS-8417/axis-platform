@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import { calc8Matrix, type CalcOpts } from '@axis/engine';
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('ko-KR');
 
@@ -24,17 +24,17 @@ export default function SimpleRespond() {
   const [engData, setEngData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // 엔진 직접 계산 (API 불필요)
   useEffect(() => {
-    const fetchEng = async () => {
-      try {
-        const { data } = await api.get('/api/engine/matrix', {
-          params: { len: length, panel, h: height, region: store.region || '경기남부', floor: store.floorType || '파이프박기', bbMonths: 6, dustH: store.dustH || 0 },
-        });
-        setEngData(data.bbResults?.['전체고재'] || data.bbResults?.[Object.keys(data.bbResults)[0]]);
-      } catch {}
-      setLoading(false);
-    };
-    fetchEng();
+    try {
+      const input = { region: store.region || '경기남부', len: length, panel, h: height, floor: store.floorType || '파이프박기' };
+      const floor = store.floorType || '파이프박기';
+      const opts: Partial<CalcOpts> = { bbMonths: 6, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: store.dustH || 0 };
+      const result = calc8Matrix(input, floor, opts);
+      const bb = result.bbResults || {};
+      setEngData(bb['전체고재'] || bb[Object.keys(bb)[0]]);
+    } catch {}
+    setLoading(false);
   }, []);
 
   const engPerM = engData?.totalPerM || 50000;

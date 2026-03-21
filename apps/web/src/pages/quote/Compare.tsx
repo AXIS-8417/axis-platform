@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
 import api from '../../lib/api';
@@ -231,8 +231,8 @@ export default function Compare() {
 
         {/* 네비게이션 */}
         <div className="flex gap-2 mt-4 text-xs">
-          <a href="/" className="px-3 py-1.5 border border-[#e2e8f0] rounded-lg text-[#64748b] hover:bg-[#f1f5f9]">← 홈</a>
-          <a href="/quote/new" className="px-3 py-1.5 border border-[#e2e8f0] rounded-lg text-[#64748b] hover:bg-[#f1f5f9]">새 견적</a>
+          <Link to="/" className="px-3 py-1.5 border border-[#e2e8f0] rounded-lg text-[#64748b] hover:bg-[#f1f5f9]">← 홈</Link>
+          <Link to="/quote/new" className="px-3 py-1.5 border border-[#e2e8f0] rounded-lg text-[#64748b] hover:bg-[#f1f5f9]">새 견적</Link>
         </div>
       </div>
     </div>

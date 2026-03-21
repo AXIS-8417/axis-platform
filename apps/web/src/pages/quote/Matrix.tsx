@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import {
+  calc8Matrix, getDustTier,
+  type CalcOpts,
+} from '@axis/engine';
 
 const ASSETS = ['전체고재', '전체신재', '판넬만신재', '파이프만신재'] as const;
 const GATES = [
@@ -88,23 +92,20 @@ export default function Matrix() {
   const len = store.length || 160;
   const sf = scaleFn(len);
 
-  const fetchMatrix = async () => {
+  // 엔진 직접 계산 (API 불필요)
+  useEffect(() => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data } = await api.get('/api/engine/matrix', {
-        params: {
-          len, panel, h, region: store.region||'경기남부', floor: store.floorType||'파이프박기',
-          bbMonths, gate, doorGrade: gateGrade, doorW: gateW, doorMesh: gateMesh, dustH: store.dustH||0,
-        },
-      });
-      setBbResults(data.bbResults||{}); setSellResults(data.sellResults||{});
-      setDesign(data.design||{}); setTrend(data.trend||'FLAT'); setError('');
+      const input = { region: store.region || '경기남부', len, panel, h, floor: store.floorType || '파이프박기' };
+      const floor = store.floorType || '파이프박기';
+      const opts: Partial<CalcOpts> = { bbMonths, gate, doorGrade: gateGrade, doorW: gateW, doorMesh: gateMesh, dustH: store.dustH || 0 };
+      const result = calc8Matrix(input, floor, opts);
+      setBbResults(result.bbResults || {}); setSellResults(result.sellResults || {});
+      setDesign(result.design || {}); setTrend('FLAT'); setError('');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.message || '계산 오류');
     } finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchMatrix(); }, [bbMonths, gate, gateGrade, gateW, gateH, gateMesh]);
+  }, [bbMonths, gate, gateGrade, gateW, gateH, gateMesh, h, panel, len]);
 
   const handleSelect = (asset: string, contract: string) => {
     const key = `${asset}_${contract}`;
