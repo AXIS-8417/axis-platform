@@ -173,15 +173,16 @@ export default function Premium() {
                   {[
                     ['자재비/M', pR.matM, sR.matM],
                     ['노무비/M', pR.labM, sR.labM],
+                    ['경비/M', len > 0 ? Math.round(pGyeongbi / len) : 0, len > 0 ? Math.round(sGyeongbi / len) : 0],
                     ['자재 합계', pR.matTotal, sR.matTotal],
                     ['노무 합계', pR.labTotal, sR.labTotal],
                   ].map(([label, p, s], i) => (
                     <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
                   ))}
-                  {/* 경비 통합 행 */}
+                  {/* 경비 통합 행 (자재→노무 바로 다음) */}
                   <tr className="border-b border-[#e5e7eb]/30 cursor-pointer hover:bg-[#f8fafc]" onClick={() => setGyeongbiOpen(!gyeongbiOpen)}>
                     <td className="py-2 font-semibold">
-                      경비 <span className="text-[10px] text-[#94a3b8] ml-1">{gyeongbiOpen ? '▲ 접기' : '▼ 상세보기'}</span>
+                      경비 합계 <span className="text-[10px] text-[#94a3b8] ml-1">{gyeongbiOpen ? '▲ 접기' : '▼ 상세보기'}</span>
                     </td>
                     <td className="text-right font-mono font-semibold">{fmt(pGyeongbi)}원</td>
                     <td className="text-right font-mono font-semibold">{fmt(sGyeongbi)}원</td>
