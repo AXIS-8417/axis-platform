@@ -13,11 +13,34 @@ export const REGION_DB: Record<string, { Vo: number; dist: number; rc: number }>
 // ══════════════════════════════════════════
 // 자재 단가 (엑셀 단가관리 실제값)
 // ══════════════════════════════════════════
+// EGI 높이별 단가 (설계서 9.4)
+const EGI_PRICE_BY_H: Record<string, Record<number, number>> = {
+  신재: { 1: 7000, 2: 11000, 3: 16500, 4: 22000, 5: 9000, 6: 9000, 7: 9000, 8: 9000, 9: 9000, 10: 9000 },
+  고재: { 1: 4000, 2: 4400, 3: 6700, 4: 12000, 5: 3000, 6: 3000, 7: 3000, 8: 3000, 9: 3000, 10: 3000 },
+};
+// 1.4M→1, 1.8M→2 매핑 (EGI 소수점 높이)
+function egiPriceKey(h: number): number {
+  if (h <= 1.4) return 1;
+  if (h <= 2) return 2;
+  if (h <= 3) return 3;
+  if (h <= 4) return 4;
+  return Math.floor(h); // 5M+ 이어붙임
+}
+
 export const PANEL_PRICE: Record<string, Record<string, number>> = {
   '스틸': { 신재: 21000, 고재: 5000 },
   RPP:   { 신재: 28000, 고재: 8300 },
-  EGI:   { 신재: 9000,  고재: 3000 },
+  EGI:   { 신재: 9000,  고재: 3000 },  // 기본값, 높이별은 getPanelPrice에서
 };
+
+// 높이 반영 판넬 단가
+export function getPanelPrice(panel: string, grade: '신재'|'고재', h: number): number {
+  if (panel === 'EGI') {
+    const key = egiPriceKey(h);
+    return EGI_PRICE_BY_H[grade]?.[key] ?? PANEL_PRICE.EGI[grade] ?? 3000;
+  }
+  return (PANEL_PRICE[panel] ?? {})[grade] ?? 5000;
+}
 export const PIPE_PRICE: Record<string, Record<string, number>> = {
   주주파이프: { 신재: 15800, 고재: 11000 },
   횡대파이프: { 신재: 15800, 고재: 15800 },
@@ -497,6 +520,17 @@ export function getRentRate(itemName: string): number {
 }
 
 // ══════════════════════════════════════════
+// 규모보정계수 (설계서 4.3)
+// ~50M=x1.60, 50~150=x1.03, 150~300=x1.00(기준), 300+=x0.97
+// ══════════════════════════════════════════
+export function getScaleCoeff(len: number): number {
+  if (len <= 50) return 1.60;
+  if (len <= 150) return 1.03;
+  if (len <= 300) return 1.00;
+  return 0.97;
+}
+
+// ══════════════════════════════════════════
 // 메인 견적 계산
 // ══════════════════════════════════════════
 export interface QuoteInput {
@@ -534,7 +568,7 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   // 자재비 + BB차감 (단가는 priceGrade, BB는 bbGrade)
   const items = [
-    { name: input.panel, qty: bom.panelQty, price: (PANEL_PRICE[input.panel]??{})[pg]??5000, bbGrade: bbPG, bbKey: input.panel },
+    { name: input.panel, qty: bom.panelQty, price: getPanelPrice(input.panel, pg, input.h), bbGrade: bbPG, bbKey: input.panel },
     { name: '주주파이프', qty: bom.juju, price: PIPE_PRICE.주주파이프[pig], bbGrade: bbPiG, bbKey: '주주파이프' },
     { name: '횡대파이프', qty: bom.hwCnt, price: PIPE_PRICE.횡대파이프[pig], bbGrade: bbPiG, bbKey: '횡대파이프' },
     { name: '지주파이프', qty: bom.jiuju, price: PIPE_PRICE.지주파이프[pig], bbGrade: bbPiG, bbKey: '지주파이프' },
@@ -579,7 +613,10 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     gateBBRefund = Math.round(gateResult.body * gateRate);
   }
 
-  const subtotal = matTotal + labTotal + eqpTotal + transTotal + gateTotal;
+  // ── 규모보정 (설계서 4.3: M당 단가에 영향) ──
+  const scaleCoeff = getScaleCoeff(L);
+
+  const subtotal = Math.round((matTotal + labTotal + eqpTotal + transTotal + gateTotal) * scaleCoeff);
   const total = subtotal - bbRefund - gateBBRefund;
   const rounded = Math.round(total / 10000) * 10000;
 
@@ -658,4 +695,4 @@ export function generateComments(len: number, asset: string|null, contract: stri
   return c;
 }
 
-export const DISCLAIMER = '본 견적은 과거 시공 데이터 기반 예상 범위이며 구조설계 도서가 아닙니다.';
+export const DISCLAIMER = '본 견적은 과거 시공 데이터 기반 예상 범위이며, 구조설계 도서가 아닙니다. 구조 조건(경간/횡대/근입 등)은 참고용이며, 실제 시공 시 현장 여건에 따라 시공업체가 조정합니다. AXIS는 구조안전 설계를 제공하지 않으며, 시공 결과에 대한 설계 책임을 지지 않습니다. 정밀 구조검토가 필요한 경우 별도의 구조설계 전문업체에 의뢰하시기 바랍니다.';
