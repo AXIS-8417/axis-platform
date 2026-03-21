@@ -1,4 +1,4 @@
-// AXIS 견적엔진 v2.1 — 확정규칙 전면 반영 (v2.0→v2.1 BUG-01~06 수정)
+// AXIS 견적엔진 v2.2 — 엑셀 통합데이터 마스터 전면 반영 (v2.1→v2.2)
 
 // ══════════════════════════════════════════
 // 지역 DB
@@ -9,6 +9,70 @@ export const REGION_DB: Record<string, { Vo: number; dist: number; rc: number }>
   강원해안:{Vo:34,dist:165,rc:1.20}, 충청:{Vo:28,dist:130,rc:1.08}, 충남서해:{Vo:34,dist:165,rc:1.12},
   전라:{Vo:30,dist:280,rc:1.10}, 경상:{Vo:30,dist:320,rc:1.10}, 부산:{Vo:38,dist:400,rc:1.15}, 제주:{Vo:42,dist:510,rc:1.30},
 };
+
+// ══════════════════════════════════════════
+// 풍속·지형·기초 구조 파라미터 (엑셀 구조계산 시트)
+// ══════════════════════════════════════════
+export const WIND_SPEED: Record<string, number> = {
+  서울: 30, 경기북부: 30, 경기남부: 30, 경기서해안: 35,
+  인천: 35, 강원내륙: 30, 강원해안: 35, 충청: 30,
+  충남서해: 35, 전라: 30, 경상: 30, 부산: 35, 제주: 40,
+};
+
+export const TERRAIN: Record<string, {Cf:number, Gf:number}> = {
+  일반: {Cf:1.2, Gf:1.8},
+  해안: {Cf:1.3, Gf:2.0},
+  고산: {Cf:1.3, Gf:2.1},
+};
+
+export const FOUNDATION_FACTOR: Record<string, number> = {
+  기초파이프시공: 1.0,
+  베이스판고정: 0.85,
+  앵커볼트형: 0.75,
+  무기초형: 0.6,
+};
+
+// ══════════════════════════════════════════
+// H빔 규격 테이블 (엑셀 H빔규격 시트)
+// ══════════════════════════════════════════
+export const HBEAM_SPECS: Record<string, {Fy:number, Z:number, kg:number}> = {
+  '100x50x5x7': {Fy:235, Z:42.2, kg:11.85},
+  '100x100x6x8': {Fy:235, Z:76.5, kg:21.9},
+  '125x60x6x8': {Fy:235, Z:61.5, kg:15.2},
+  '125x125x6.5x9': {Fy:235, Z:113, kg:30.31},
+  '150x75x5x7': {Fy:235, Z:88.8, kg:18.23},
+  '150x150x7x10': {Fy:235, Z:162, kg:37.5},
+  '175x90x5x8': {Fy:235, Z:122, kg:21.56},
+  '200x100x5.5x8': {Fy:235, Z:160, kg:25.33},
+  '200x200x8x12': {Fy:235, Z:355, kg:56.24},
+  '250x125x6x9': {Fy:235, Z:247, kg:33.14},
+  '250x250x9x14': {Fy:235, Z:613, kg:82.2},
+  '300x150x6.5x9': {Fy:235, Z:374, kg:41.16},
+  '300x300x10x15': {Fy:235, Z:920, kg:106.0},
+  '350x175x7x11': {Fy:235, Z:557, kg:57.82},
+  '400x200x8x13': {Fy:235, Z:770, kg:75.16},
+};
+
+export const HBEAM_PRICE_PER_KG = 1100; // 원/kg (신재/고재 동일)
+
+// ══════════════════════════════════════════
+// 작업조건 파라미터 (엑셀 작업조건 시트)
+// ══════════════════════════════════════════
+export const WORK_PARAMS = {
+  오가_일일작업량_일반: 45,    // 본/일
+  오가_일일작업량_암반: 12,    // 본/일
+  암반현장_연료비배수: 2,
+  기초파이프_장비기준: 200,   // 본 이상이면 굴착기 추가
+  장거리기준_장비추가: 1000,  // M 이상이면 굴착기 +1
+  최소일일비용: 900000,
+  목표마진율: 0.1,
+  스카이임대료: 650000,
+  철판kg당단가: 3500,
+  철판밀도: 7850,
+  레미콘루베당단가: 120000,
+  최소타설비용: 450000,
+  홀딩도어추가루베: 3,
+} as const;
 
 // ══════════════════════════════════════════
 // 자재 단가 — 엑셀 통합데이터 마스터 완전 반영
@@ -70,6 +134,22 @@ export function getPipeWeight(pipeType: string, h: number, gichoLen: number | nu
   return data ? { kg: data.kg, cbm: data.cbm } : { kg: 10, cbm: 0.001 };
 }
 
+// ── EGI 판넬 단가 (높이 + 두께별 — 엑셀 통합데이터) ──
+const EGI_PANEL_PRICE: Record<string, Record<string, Record<string, number>>> = {
+  신재: {
+    '1.8': { '0.5': 6300, '0.6': 7000 },
+    '2.4': { '0.5': 8200, '0.6': 11000 },
+    '3.0': { '0.5': 16500, '0.6': 16500 },
+    '4.0': { '0.6': 22000, '0.8': 22000 },
+  },
+  고재: {
+    '1.8': { default: 4000 },
+    '2.4': { default: 4400 },
+    '3.0': { default: 6700 },
+    '4.0': { default: 12000 },
+  },
+};
+
 // ── 판넬 단가 (높이별 — 엑셀 통합데이터) ──
 const RPP_PRICE: Record<string, Record<number, number>> = {
   신재: { 2: 10000, 3: 15000, 4: 20000, 5: 25000, 6: 30000, 7: 35000, 8: 40000, 9: 45000, 10: 50000 },
@@ -91,6 +171,19 @@ function egiPriceKey(h: number): number {
   if (h <= 3) return 3;
   if (h <= 4) return 4;
   return Math.floor(h);
+}
+
+/** EGI 판넬 두께별 단가 조회 (신규) */
+export function getEgiPanelPrice(grade: '신재' | '고재', heightM: string, thicknessT?: string): number | null {
+  const gradeData = EGI_PANEL_PRICE[grade];
+  if (!gradeData) return null;
+  const hData = gradeData[heightM];
+  if (!hData) return null;
+  if (grade === '고재') return hData['default'] ?? null;
+  if (thicknessT && hData[thicknessT] !== undefined) return hData[thicknessT];
+  // 두께 미지정 시 첫 번째 값 반환
+  const vals = Object.values(hData);
+  return vals.length > 0 ? vals[0] : null;
 }
 
 export function getPanelPrice(panel: string, grade: '신재' | '고재', h: number): number {
@@ -116,7 +209,8 @@ export const MISC_PRICE: Record<string, number> = {
   분진망: 15000, 굴착기: 720000,
   양개조이너: 400, 후크볼트: 150,  // ★ 엑셀 실제값 반영
   베이스판: 4000, 세트앙카: 2500, 전산볼트: 3000,
-  'H-BAR': 15000,
+  케미칼앙카액: 10000, 레미콘: 150000,
+  'H-BAR': 15000, 'ㄷ-BAR': 12000,
 };
 
 // 하위호환용 (기존 코드가 PIPE_PRICE 참조하는 곳 대비)
@@ -359,11 +453,18 @@ export function calcLabor(len: number, h: number, panel: string, span: number, i
 // 굴착기 대수/단가 + 스카이 + 5톤크레인 + 오가
 // ══════════════════════════════════════════
 const EQUIP_PRICE = {
-  굴착기:     { day: 720000, half: 500000 },  // VAT 포함
-  스카이:     { day: 720000, half: 500000 },
-  '5톤크레인': { day: 720000, half: 500000 },
-  소형오가:   { day: 1210000, half: 1210000 },
+  굴착기:        { day: 720000, half: 500000 },
+  스카이:        { day: 720000, half: 500000 },
+  '5톤크레인':   { day: 720000, half: 500000 },
+  '9.5톤크레인': { day: 1210000, half: 1210000 },
+  '25톤크레인':  { day: 1980000, half: 1100000 },
+  소형오가:      { day: 1210000, half: 1210000 },
+  오거스크류:    { day: 390000, half: 280000 },
+  오거T4:       { day: 1320000, half: 1210000 },
+  대형콤프레샤:  { day: 1050000, half: 1050000 },
 } as const;
+
+export { EQUIP_PRICE };
 
 export interface EquipDetail {
   items: { name: string; qty: number; price: number; amount: number }[];
@@ -374,8 +475,8 @@ export function calcEquipment(h: number, panel: string, totalLen: number, foundP
   const items: { name: string; qty: number; price: number; amount: number }[] = [];
 
   // ── 굴착기 ──
-  let excavCnt = foundPipeQty > 0 ? Math.ceil(foundPipeQty / 200) : 1;
-  if (totalLen >= 1000) excavCnt += 1;
+  let excavCnt = foundPipeQty > 0 ? Math.ceil(foundPipeQty / WORK_PARAMS.기초파이프_장비기준) : 1;
+  if (totalLen >= WORK_PARAMS.장거리기준_장비추가) excavCnt += 1;
   if (excavCnt === 0) excavCnt = 1;
   const excavPrice = EQUIP_PRICE.굴착기.day;
   items.push({ name: '굴착기', qty: excavCnt, price: excavPrice, amount: excavCnt * excavPrice });
@@ -406,7 +507,7 @@ export function calcEquipment(h: number, panel: string, totalLen: number, foundP
   // H빔 수량은 BOM에서 별도로 관리 — 여기서는 isHBeam 플래그만 사용
   // H빔 시공 시 오가 필수: 일일작업량 일반=45본, 암반=12본
   if (isHBeam) {
-    const ogaDays = Math.max(1, Math.ceil(totalLen / 3 / 45)); // 약 3M 간격
+    const ogaDays = Math.max(1, Math.ceil(totalLen / 3 / WORK_PARAMS.오가_일일작업량_일반)); // 약 3M 간격
     const ogaPrice = EQUIP_PRICE.소형오가.day;
     items.push({ name: '소형오가', qty: ogaDays, price: ogaPrice, amount: ogaDays * ogaPrice });
   }
@@ -455,9 +556,60 @@ function getUnitWV(name: string, h: number): [number, number] {
 }
 
 // ══════════════════════════════════════════
-// 운반비 (v3 — 엑셀 modTransport_v3_patch 동일)
-// 8종 차량, 무게/부피 기반 대수, 3구간 단가, 만원 절상
+// 운반비 (v3 — 엑셀 운반요율 시트 + modTransport_v3_patch 폴백)
 // ══════════════════════════════════════════
+
+// ── 운반요율 테이블 (엑셀 운반요율 시트 — 지역별 차량 8종 편도단가) ──
+const TRANSPORT_RATES: Record<string, Record<string, number>> = {
+  '경기도|김포시': {'1톤':70000,'1.4톤':70000,'2.5톤':100000,'3.5톤':120000,'5톤':140000,'5톤축':160000,'11톤':220000,'24톤':280000},
+  '경기도|고양시': {'1톤':80000,'1.4톤':80000,'2.5톤':110000,'3.5톤':140000,'5톤':150000,'5톤축':170000,'11톤':240000,'24톤':310000},
+  '경기도|파주시': {'1톤':80000,'1.4톤':80000,'2.5톤':110000,'3.5톤':140000,'5톤':160000,'5톤축':180000,'11톤':250000,'24톤':320000},
+  '경기도|시흥시': {'1톤':70000,'1.4톤':70000,'2.5톤':100000,'3.5톤':130000,'5톤':150000,'5톤축':170000,'11톤':230000,'24톤':300000},
+  '경기도|안산시': {'1톤':70000,'1.4톤':70000,'2.5톤':100000,'3.5톤':130000,'5톤':150000,'5톤축':170000,'11톤':230000,'24톤':300000},
+  '경기도|수원시': {'1톤':80000,'1.4톤':80000,'2.5톤':110000,'3.5톤':140000,'5톤':160000,'5톤축':180000,'11톤':250000,'24톤':320000},
+  '경기도|화성시': {'1톤':80000,'1.4톤':80000,'2.5톤':110000,'3.5톤':140000,'5톤':160000,'5톤축':180000,'11톤':250000,'24톤':320000},
+  '경기도|평택시': {'1톤':90000,'1.4톤':90000,'2.5톤':130000,'3.5톤':160000,'5톤':180000,'5톤축':200000,'11톤':280000,'24톤':360000},
+  '경기도|용인시': {'1톤':80000,'1.4톤':80000,'2.5톤':120000,'3.5톤':150000,'5톤':170000,'5톤축':190000,'11톤':260000,'24톤':340000},
+  '경기도|성남시': {'1톤':70000,'1.4톤':70000,'2.5톤':100000,'3.5톤':130000,'5톤':150000,'5톤축':170000,'11톤':230000,'24톤':300000},
+  '서울특별시|강남구': {'1톤':80000,'1.4톤':80000,'2.5톤':110000,'3.5톤':140000,'5톤':160000,'5톤축':180000,'11톤':250000,'24톤':320000},
+  '서울특별시|마포구': {'1톤':80000,'1.4톤':80000,'2.5톤':110000,'3.5톤':140000,'5톤':150000,'5톤축':170000,'11톤':240000,'24톤':310000},
+  '인천광역시|계양구': {'1톤':70000,'1.4톤':70000,'2.5톤':100000,'3.5톤':130000,'5톤':140000,'5톤축':160000,'11톤':220000,'24톤':290000},
+  '충청남도|천안시': {'1톤':110000,'1.4톤':110000,'2.5톤':150000,'3.5톤':190000,'5톤':210000,'5톤축':240000,'11톤':330000,'24톤':430000},
+  '충청북도|청주시': {'1톤':110000,'1.4톤':110000,'2.5톤':150000,'3.5톤':190000,'5톤':220000,'5톤축':250000,'11톤':340000,'24톤':440000},
+  '대전광역시|서구': {'1톤':120000,'1.4톤':120000,'2.5톤':170000,'3.5톤':210000,'5톤':240000,'5톤축':270000,'11톤':370000,'24톤':480000},
+  '강원특별자치도|춘천시': {'1톤':120000,'1.4톤':120000,'2.5톤':170000,'3.5톤':210000,'5톤':240000,'5톤축':270000,'11톤':370000,'24톤':480000},
+  '강원특별자치도|원주시': {'1톤':140000,'1.4톤':140000,'2.5톤':190000,'3.5톤':240000,'5톤':270000,'5톤축':300000,'11톤':420000,'24톤':540000},
+  '강원특별자치도|강릉시': {'1톤':170000,'1.4톤':170000,'2.5톤':240000,'3.5톤':300000,'5톤':340000,'5톤축':380000,'11톤':530000,'24톤':680000},
+  '전라북도|전주시': {'1톤':160000,'1.4톤':160000,'2.5톤':220000,'3.5톤':270000,'5톤':310000,'5톤축':350000,'11톤':480000,'24톤':620000},
+  '광주광역시|북구': {'1톤':190000,'1.4톤':190000,'2.5톤':260000,'3.5톤':330000,'5톤':370000,'5톤축':420000,'11톤':570000,'24톤':740000},
+  '경상북도|구미시': {'1톤':170000,'1.4톤':170000,'2.5톤':230000,'3.5톤':290000,'5톤':330000,'5톤축':370000,'11톤':510000,'24톤':660000},
+  '대구광역시|중구': {'1톤':180000,'1.4톤':180000,'2.5톤':250000,'3.5톤':310000,'5톤':350000,'5톤축':400000,'11톤':540000,'24톤':700000},
+  '경상남도|창원시': {'1톤':200000,'1.4톤':200000,'2.5톤':280000,'3.5톤':350000,'5톤':400000,'5톤축':450000,'11톤':610000,'24톤':790000},
+  '부산광역시|중구': {'1톤':210000,'1.4톤':210000,'2.5톤':290000,'3.5톤':360000,'5톤':410000,'5톤축':460000,'11톤':630000,'24톤':810000},
+  '울산광역시|중구': {'1톤':200000,'1.4톤':200000,'2.5톤':270000,'3.5톤':340000,'5톤':390000,'5톤축':440000,'11톤':600000,'24톤':770000},
+  '제주특별자치도|제주시': {'1톤':280000,'1.4톤':280000,'2.5톤':380000,'3.5톤':480000,'5톤':540000,'5톤축':610000,'11톤':830000,'24톤':1070000},
+};
+
+export { TRANSPORT_RATES };
+
+/** 주소 문자열로 TRANSPORT_RATES 키 매칭 시도 */
+function matchTransportRegion(address: string): Record<string, number> | null {
+  if (!address) return null;
+  const norm = address.replace(/\s/g, '');
+  for (const key of Object.keys(TRANSPORT_RATES)) {
+    const parts = key.split('|');
+    // parts[0] = 시도, parts[1] = 시군구
+    if (parts.every(p => norm.includes(p))) {
+      return TRANSPORT_RATES[key];
+    }
+    // 시군구만으로도 매칭 시도 (예: "김포시" → "경기도|김포시")
+    if (parts[1] && norm.includes(parts[1])) {
+      return TRANSPORT_RATES[key];
+    }
+  }
+  return null;
+}
+
 const VEHICLES = [
   { name: '24톤', maxKg: 24000, maxM3: 60 },
   { name: '11톤', maxKg: 14000, maxM3: 45 },
@@ -501,12 +653,15 @@ export interface TransportDetail {
   totalWeight: number; totalVolume: number;
 }
 
-export function calcTransport(dist: number, len: number, isBB: boolean, bomItems?: { name: string; qty: number; h?: number }[]): TransportDetail {
+export function calcTransport(dist: number, len: number, isBB: boolean, bomItems?: { name: string; qty: number; h?: number }[], address?: string): TransportDetail {
   const trips = isBB ? 2 : 1;
+
+  // 지역별 운반요율 테이블 매칭 시도
+  const regionRates = address ? matchTransportRegion(address) : null;
 
   // BOM 아이템이 없으면 기존 간이 방식 폴백
   if (!bomItems || bomItems.length === 0) {
-    const base5 = calc5tonPrice(dist);
+    const base5 = regionRates ? regionRates['5톤'] : calc5tonPrice(dist);
     const trucks = Math.max(2, Math.ceil(len / 90));
     const total = Math.ceil(trucks * base5 * trips / 10000) * 10000;
     return { vehicle: '5톤', trucks, perTruck: base5, trips, total, totalWeight: 0, totalVolume: 0 };
@@ -520,17 +675,15 @@ export function calcTransport(dist: number, len: number, isBB: boolean, bomItems
     totalVolume += it.qty * v;
   }
 
-  // 5톤 기준 단가
-  const base5 = calc5tonPrice(dist);
-
-  // 8종 차량 중 최저 비용 선택 (★ v3: 차량별 개별 단가)
-  let bestVehicle = '5톤', bestQty = 999, bestRate = base5, bestCost = Infinity;
+  // 8종 차량 중 최저 비용 선택
+  let bestVehicle = '5톤', bestQty = 999, bestRate = 0, bestCost = Infinity;
 
   for (const v of VEHICLES) {
     const qW = v.maxKg > 0 ? Math.ceil(totalWeight / v.maxKg) : 999;
     const qV = v.maxM3 > 0 ? Math.ceil(totalVolume / v.maxM3) : 999;
     const qty = Math.max(1, Math.max(qW, qV));
-    const rate = calcVehiclePrice(v.name, dist);
+    // 지역테이블 우선, 없으면 공식 기반 단가
+    const rate = regionRates ? (regionRates[v.name] ?? calcVehiclePrice(v.name, dist)) : calcVehiclePrice(v.name, dist);
     const cost = qty * rate * trips;
     if (cost < bestCost) {
       bestVehicle = v.name; bestQty = qty; bestRate = rate; bestCost = cost;
@@ -545,18 +698,31 @@ export function calcTransport(dist: number, len: number, isBB: boolean, bomItems
 // 도어 (v2.2: 양개 비계식/각관식 분리, 홀딩 쪽문+수직포망)
 // ══════════════════════════════════════════
 export const DOOR_PRICE = {
-  홀딩도어:   { 고재: 270000, 신재: 350000 },  // 원/M, H 6.0M 고정
+  양개도어:   { 신재: 350000, 고재: 200000 },  // 원/M (per door leaf), H:2.4M, W:2.0~8.0M
+  홀딩도어:   { 신재: 63000, 고재: 50000 },    // 원/㎡, H:6.0M, W:6.0~12.0M
+  현장DIY출입문: { '2.0': 100000, '3.0': 200000, '4.0': 300000, '5.0': 400000, '6.0': 500000 } as Record<string, number>,
+  // 레거시 호환
   양개_비계:  { 고재: 100000, 신재: 130000 },  // 원/M, H 2M or 3M, W ≤ 4M
   양개_각관:  { 고재: 300000, 신재: 300000 },  // 원/M, H 2.4M 고정
   수직포망: 25000,                              // 원/장 (문짝 1M 폭당 1장)
 } as const;
 
-// gate: '없음' | '양개_비계' | '양개_각관' | '홀딩도어'
+// gate: '없음' | '양개_비계' | '양개_각관' | '양개도어' | '홀딩도어' | '현장DIY출입문'
 export function calcGate(gate: string, grade: '고재'|'신재', W: number, _h: number, mesh: boolean) {
   if (!gate || gate === '없음') return { total: 0, body: 0, meshAmt: 0, meshQty: 0 };
   if (gate === '홀딩도어') {
-    const b = W * DOOR_PRICE.홀딩도어[grade];
+    const H = 6.0; // 홀딩도어 고정높이
+    const area = W * H;
+    const unitPrice = grade === '신재' ? DOOR_PRICE.홀딩도어.신재 : DOOR_PRICE.홀딩도어.고재;
+    const b = Math.round(area * unitPrice);
     const meshQty = mesh ? W : 0; // 문짝 1M당 1장
+    const m = meshQty * DOOR_PRICE.수직포망;
+    return { total: b + m, body: b, meshAmt: m, meshQty };
+  }
+  if (gate === '양개도어') {
+    const unitPrice = grade === '신재' ? DOOR_PRICE.양개도어.신재 : DOOR_PRICE.양개도어.고재;
+    const b = Math.round(W * unitPrice);
+    const meshQty = mesh ? W : 0;
     const m = meshQty * DOOR_PRICE.수직포망;
     return { total: b + m, body: b, meshAmt: m, meshQty };
   }
@@ -566,6 +732,11 @@ export function calcGate(gate: string, grade: '고재'|'신재', W: number, _h: 
   }
   if (gate === '양개_각관') {
     const b = W * DOOR_PRICE.양개_각관[grade];
+    return { total: b, body: b, meshAmt: 0, meshQty: 0 };
+  }
+  if (gate === '현장DIY출입문') {
+    const wKey = W.toFixed(1);
+    const b = DOOR_PRICE.현장DIY출입문[wKey] ?? Math.round(W * 100000);
     return { total: b, body: b, meshAmt: 0, meshQty: 0 };
   }
   return { total: 0, body: 0, meshAmt: 0, meshQty: 0 };
@@ -620,6 +791,7 @@ export function getScaleCoeff(len: number): number {
 export interface QuoteInput {
   region: string; len: number; panel: string; h: number; floor: string;
   asset: AssetType; contract: '바이백' | '구매';
+  address?: string; // 운반요율 테이블 매칭용 주소
 }
 export interface CalcOpts {
   bbMonths: number; gate: string; doorGrade: '고재'|'신재'; doorW: number; doorMesh: boolean; dustH?: number;
@@ -684,9 +856,9 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
   const labor = calcLabor(L, input.h, input.panel, design.span, isBB, dustH, design.isHBeam);
   const labTotal = labor.total;
 
-  // ── 운반비 (BOM 무게/부피 기반) ──
+  // ── 운반비 (BOM 무게/부피 기반, 지역테이블 우선) ──
   const bomItems = items.map(it => ({ name: it.bbKey || it.name, qty: it.qty, h: input.h }));
-  const trans = calcTransport(reg.dist, L, isBB, bomItems);
+  const trans = calcTransport(reg.dist, L, isBB, bomItems, input.address);
   const transTotal = trans.total;
   const gateResult = calcGate(opts.gate, opts.doorGrade, opts.doorW, input.h, opts.doorMesh);
   const gateTotal = gateResult.total;
