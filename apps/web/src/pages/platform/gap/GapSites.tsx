@@ -15,7 +15,7 @@ export default function GapSites() {
   const fmtKRW = (n: number) => (n / 10000).toLocaleString() + '만';
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-6">현장 관리</h1>
       <div className="space-y-3">
         {sites.map(s => (
@@ -27,7 +27,7 @@ export default function GapSites() {
               </div>
               <span className="text-xs px-2 py-1 rounded" style={{ background: statusColor(s.status) + '20', color: statusColor(s.status) }}>{s.status}</span>
             </div>
-            <div className="grid grid-cols-4 gap-4 mb-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
               <div>
                 <div className="text-xs" style={{ color: '#64748B' }}>패널 / 연장</div>
                 <div className="text-sm font-mono font-semibold" style={{ color: '#00D9CC' }}>{s.panel} · {s.len}m</div>

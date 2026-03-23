@@ -18,12 +18,12 @@ export default function EulHome() {
   const statusCount = (s: string) => orders.filter(o => o.currentStatus === s).length;
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">을 대시보드</h1>
         <span className="text-xs" style={{ color:'#64748B' }}>{new Date().toLocaleDateString('ko-KR')}</span>
       </div>
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label:'작업지시', value:`${orders.length}건`, color:'#00D9CC', link:'/platform/eul/work-orders' },
           { label:'호출중', value:`${statusCount('호출중')}건`, color:'#F0A500', link:'/platform/eul/calls' },
@@ -37,7 +37,7 @@ export default function EulHome() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div style={{ background:'#0C1520', border:'1px solid #1E293B' }} className="rounded-lg p-6">
           <h2 className="text-sm font-semibold mb-4" style={{ color:'#00D9CC' }}>최근 작업지시</h2>
           {orders.slice(0,4).map(o => {

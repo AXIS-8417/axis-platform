@@ -155,7 +155,7 @@ export default function ByeongSafety() {
   const statusColor = (s: string) => s === '\uc644\ub8cc' ? '#22C55E' : s === '\uc870\uc0ac\uc911' ? '#F0A500' : '#3B82F6';
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-4">\uc548\uc804\uccb4\ud06c</h1>
 
       {/* Workflow tabs */}
@@ -193,7 +193,7 @@ export default function ByeongSafety() {
               <h2 className="text-sm font-semibold" style={{ color: '#22C55E' }}>12\ud56d\ubaa9 \ubc29\ud638\uc7a5\uce58 \uc810\uac80</h2>
               <span className="text-xs font-mono" style={{ color: passCount === 12 ? '#22C55E' : '#F0A500' }}>{passCount}/12</span>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {CHECK_ITEMS.map(item => (
                 <label key={item} className="flex items-center gap-2 text-sm cursor-pointer py-1" style={{ color: checks[item] ? '#22C55E' : '#94A3B8' }}>
                   <input type="checkbox" checked={checks[item]} onChange={() => setChecks({ ...checks, [item]: !checks[item] })} style={{ accentColor: '#22C55E' }} />
@@ -235,7 +235,7 @@ export default function ByeongSafety() {
           <h2 className="text-sm font-semibold mb-4" style={{ color: '#F0A500' }}>\uc9c0\uc801\uc0ac\ud56d \uc785\ub825</h2>
           <textarea placeholder="\uc9c0\uc801\uc0ac\ud56d\uc744 \uc785\ub825\ud558\uc138\uc694..." rows={4} value={issueDesc} onChange={e => setIssueDesc(e.target.value)}
             className="w-full px-3 py-2 rounded text-sm mb-4" style={inputStyle} />
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div><div className="text-xs mb-2" style={{ color: '#64748B' }}>\uc870\uce58 \uc804 \uc0ac\uc9c4</div>
               <div className="h-32 rounded flex items-center justify-center" style={{ background: '#111B2A', border: '1px dashed #334155', color: '#64748B' }}>[\uc0ac\uc9c4 \uc5c5\ub85c\ub4dc]</div></div>
             <div><div className="text-xs mb-2" style={{ color: '#64748B' }}>\ud604\uc7a5 \uc804\uacbd</div>
@@ -251,7 +251,7 @@ export default function ByeongSafety() {
           {issueDesc && <div className="mb-4 p-3 rounded text-sm" style={{ background: '#F0A50015', color: '#F0A500' }}>\uc9c0\uc801\uc0ac\ud56d: {issueDesc}</div>}
           <textarea placeholder="\uc870\uce58\ub0b4\uc6a9\uc744 \uc785\ub825\ud558\uc138\uc694..." rows={4} value={actionDesc} onChange={e => setActionDesc(e.target.value)}
             className="w-full px-3 py-2 rounded text-sm mb-4" style={inputStyle} />
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div><div className="text-xs mb-2" style={{ color: '#64748B' }}>\uc870\uce58 \uc804 \uc0ac\uc9c4</div>
               <div className="h-32 rounded flex items-center justify-center" style={{ background: '#111B2A', border: '1px dashed #EF4444', color: '#EF4444' }}>[\uc870\uce58 \uc804]</div></div>
             <div><div className="text-xs mb-2" style={{ color: '#64748B' }}>\uc870\uce58 \ud6c4 \uc0ac\uc9c4</div>
@@ -292,7 +292,7 @@ export default function ByeongSafety() {
           {/* Incident form */}
           <div style={card} className="rounded-lg p-6 mb-6">
             <h2 className="text-sm font-semibold mb-4" style={{ color: '#EF4444' }}>\uc0ac\uace0 \uc2e0\uace0 \uc591\uc2dd</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <label className="text-xs mb-1 block" style={{ color: '#64748B' }}>\uc0ac\uace0 \uc77c\uc2dc *</label>
                 <input type="date" value={incDate} onChange={e => setIncDate(e.target.value)} className="w-full px-3 py-2 rounded" style={inputStyle} />
@@ -336,7 +336,7 @@ export default function ByeongSafety() {
                 <label className="text-xs mb-1 block" style={{ color: '#64748B' }}>GPS \uacbd\ub3c4</label>
                 <input value={incGpsLng} onChange={e => setIncGpsLng(e.target.value)} className="w-full px-3 py-2 rounded" style={inputStyle} placeholder="127.xxxx" />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 md:col-span-2">
                 <label className="text-xs mb-1 block" style={{ color: '#64748B' }}>\uc0ac\uace0 \uc124\uba85</label>
                 <textarea value={incDesc} onChange={e => setIncDesc(e.target.value)} rows={3} className="w-full px-3 py-2 rounded" style={inputStyle} placeholder="\uc0ac\uace0 \uacbd\uc704\ub97c \uc0c1\uc138\ud788 \uc785\ub825\ud558\uc138\uc694..." />
               </div>

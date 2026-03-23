@@ -120,7 +120,7 @@ export default function EulContracts() {
   };
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-6">간편서명</h1>
 
       {/* 기존 계약 목록 */}
@@ -140,7 +140,7 @@ export default function EulContracts() {
           </div>
 
           {/* 대행자 서명 */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div className="p-4 rounded-lg" style={{ background:'#0C1520', border:'1px solid #F0A500' }}>
               <h3 className="text-sm font-bold mb-3" style={{ color:'#F0A500' }}>대행자기기 서명</h3>
               <input placeholder="계약 ID (LC-...)" value={proxyForm.contractId} onChange={e => setProxyForm({...proxyForm, contractId: e.target.value})}
@@ -171,7 +171,7 @@ export default function EulContracts() {
       {!selected && !result ? (
         <div>
           <h2 className="text-sm font-bold mb-3" style={{ color:'#94A3B8' }}>새 계약 생성 — 서명 경로 선택</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {ROUTES.map(r => (
               <button key={r.key} onClick={() => { setSelected(r.key); setFormData({}); }} className="rounded-lg p-6 text-left transition-all hover:opacity-90"
                 style={{ background:'#0C1520', border:`2px solid ${r.color}` }}>

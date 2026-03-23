@@ -123,7 +123,7 @@ export default function EulWorkOrders() {
   const wizardLabels = ['기본', '구조', '배정'];
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">작업지시</h1>
         <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#00D9CC', color: '#070C12' }}>
@@ -165,7 +165,7 @@ export default function EulWorkOrders() {
 
           {/* Step 0: 기본 */}
           {wizardStep === 0 && (
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <label className="text-xs mb-1 block" style={labelStyle}>현장 (siteId)</label>
                 <select value={form.siteId} onChange={e => updateField('siteId', e.target.value)} className="w-full px-3 py-2 rounded" style={inputStyle}>
@@ -194,7 +194,7 @@ export default function EulWorkOrders() {
 
           {/* Step 1: 구조 */}
           {wizardStep === 1 && (
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <label className="text-xs mb-1 block" style={labelStyle}>판넬유형</label>
                 <input value={form.panelType} onChange={e => updateField('panelType', e.target.value)} className="w-full px-3 py-2 rounded" style={inputStyle} placeholder="예: RPP, 스틸" />
@@ -250,7 +250,7 @@ export default function EulWorkOrders() {
 
           {/* Step 2: 배정 */}
           {wizardStep === 2 && (
-            <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <label className="text-xs mb-1 block" style={labelStyle}>배정방법</label>
                 <select value={form.assignMethod} onChange={e => updateField('assignMethod', e.target.value)} className="w-full px-3 py-2 rounded" style={inputStyle}>

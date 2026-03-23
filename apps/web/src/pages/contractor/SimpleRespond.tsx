@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import { calc8Matrix, type CalcOpts } from '@axis/engine';
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('ko-KR');
 
@@ -24,17 +24,17 @@ export default function SimpleRespond() {
   const [engData, setEngData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // 엔진 직접 계산 (API 불필요)
   useEffect(() => {
-    const fetchEng = async () => {
-      try {
-        const { data } = await api.get('/api/engine/matrix', {
-          params: { len: length, panel, h: height, region: store.region || '경기남부', floor: store.floorType || '파이프박기', bbMonths: 6, dustH: store.dustH || 0 },
-        });
-        setEngData(data.bbResults?.['전체고재'] || data.bbResults?.[Object.keys(data.bbResults)[0]]);
-      } catch {}
-      setLoading(false);
-    };
-    fetchEng();
+    try {
+      const input = { region: store.region || '경기남부', len: length, panel, h: height, floor: store.floorType || '파이프박기' };
+      const floor = store.floorType || '파이프박기';
+      const opts: Partial<CalcOpts> = { bbMonths: 6, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: store.dustH || 0 };
+      const result = calc8Matrix(input, floor, opts);
+      const bb = result.bbResults || {};
+      setEngData(bb['전체고재'] || bb[Object.keys(bb)[0]]);
+    } catch {}
+    setLoading(false);
   }, []);
 
   const engPerM = engData?.totalPerM || 50000;
@@ -71,7 +71,7 @@ export default function SimpleRespond() {
         </div>
 
         {/* 블록 요약 */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
           {[
             ['A블록·현장조건', `${panel} · H${height}M · L${length}M`],
             ['B블록·예정가', `BB · 전체고재`],
@@ -254,7 +254,7 @@ export default function SimpleRespond() {
               </div>
 
               {track !== '엔진승인' && (
-                <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
                   <div>
                     <div className="text-xs text-[#64748b] mb-1">총 견적액 (원)</div>
                     <input type="number" value={totalAmt} onChange={e => setTotalAmt(e.target.value)} placeholder={String(engTotal)}
@@ -289,7 +289,7 @@ export default function SimpleRespond() {
         </div>
 
         {/* 하단 요약 — 6항목 */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-4">
           {[
             ['자재(BB후)', fmt(engMatTotal ? engMatTotal - engBBRefund : 0) + '원'],
             ['노무', fmt(engLabTotal) + '원'],

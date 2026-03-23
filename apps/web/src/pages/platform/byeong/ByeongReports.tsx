@@ -105,7 +105,7 @@ export default function ByeongReports() {
   const hasGap = Number(form.gapDistanceM) > 0;
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">시공일보</h1>
         <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#22C55E', color: '#070C12' }}>
@@ -121,7 +121,7 @@ export default function ByeongReports() {
             GPS: {gpsCoords}
           </div>
 
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             {/* Row 1 */}
             <div>
               <label className="text-xs mb-1 block" style={labelStyle}>작업지시 (workId)</label>
@@ -221,7 +221,7 @@ export default function ByeongReports() {
             )}
 
             {/* Note */}
-            <div className={hasGap ? 'col-span-3' : 'col-span-2'}>
+            <div className={hasGap ? 'col-span-1 sm:col-span-2 md:col-span-3' : 'col-span-1 sm:col-span-2'}>
               <label className="text-xs mb-1 block" style={labelStyle}>비고</label>
               <textarea value={form.note} onChange={e => updateField('note', e.target.value)} rows={2} className="w-full px-3 py-2 rounded" style={inputStyle} />
             </div>

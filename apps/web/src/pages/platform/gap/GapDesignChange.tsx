@@ -85,7 +85,7 @@ export default function GapDesignChange() {
   };
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-6">설계변경</h1>
 
       {loading ? (

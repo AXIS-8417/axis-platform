@@ -51,7 +51,7 @@ export default function MemberManage() {
   const filteredParties = roleFilter === '전체' ? parties : parties.filter(p => p.partyRole === roleFilter);
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-6">회원관리</h1>
 
       {/* Tabs */}
@@ -76,7 +76,7 @@ export default function MemberManage() {
             ))}
             <span className="ml-auto text-xs self-center" style={{ color:'#64748B' }}>{filteredParties.length}개 주체</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredParties.map(p => {
               const color = ROLE_COLORS[p.partyRole] || '#64748B';
               const partyUsers = users.filter(u => u.partyId === p.partyId);
@@ -188,7 +188,7 @@ export default function MemberManage() {
                       <span className="text-xs" style={{ color:'#64748B' }}>{c.insExpiry ? `만료: ${c.insExpiry}` : ''}</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="p-2 rounded text-center" style={{ background:'#111B2A' }}>
                       <div className="text-xs" style={{ color:'#64748B' }}>총 작업</div>
                       <div className="font-mono font-bold" style={{ color: gc }}>{c.totalWorks}건</div>
@@ -222,7 +222,7 @@ export default function MemberManage() {
       {tab === 3 && (
         <div>
           <div className="text-xs mb-6" style={{ color:'#64748B' }}>구독은 기능 차이가 아니라 기록의 효력 범위입니다.</div>
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             {[
               { plan:'NONE', label:'무료', price:'₩0', color:'#64748B', items:['기록 입력 ✓','기본 조회 ✓','호출 수신 ✓','봉인 ✗','자동정산 ✗','증빙패키지 ✗','감사로그 ✗'] },
               { plan:'STANDARD', label:'스탠다드', price:'₩49,000/월', color:'#00D9CC', items:['기록 입력 ✓','전체 조회 ✓','호출매칭 ✓','정산관리 ✓','이슈이벤트 ✓','봉인 일부 ✓','자동정산 ✗','기록 12M 보관'] },

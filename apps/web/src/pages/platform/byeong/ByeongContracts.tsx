@@ -32,7 +32,7 @@ export default function ByeongContracts() {
   };
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-4">근로계약</h1>
       <div className="mb-6 p-4 rounded-lg" style={{ background:'#3B82F615', border:'1px solid #3B82F640', color:'#3B82F6' }}>
         <div className="text-sm font-semibold">본 근로계약 내용은 을·병 당사자만 열람 가능합니다.</div>

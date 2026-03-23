@@ -65,7 +65,7 @@ export default function GapDocuments() {
   const statusColor = (s: string) => s === '유효' || s === '봉인' ? '#22C55E' : s === '만료' || s === '미가입' ? '#EF4444' : '#F0A500';
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-6">서류 조회</h1>
 
       {/* 근로계약 차단 경고 */}

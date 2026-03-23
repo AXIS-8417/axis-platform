@@ -233,7 +233,7 @@ export default function QuoteHistory() {
                     {/* 재노경 M당 단가 */}
                     <div className="mb-4">
                       <h3 className="text-sm font-semibold mb-2" style={{ color: '#F0A500' }}>재노경 M당 단가</h3>
-                      <div className="grid grid-cols-4 gap-2 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                         <div style={{ background: '#0C1520' }} className="rounded p-2 text-center">
                           <div style={{ color: '#64748B' }} className="text-xs">재료비</div>
                           <div className="font-mono">{fmt(r.result.matPerM)}원/M</div>
@@ -268,7 +268,7 @@ export default function QuoteHistory() {
                     {/* 금액 요약 */}
                     <div className="mb-4">
                       <h3 className="text-sm font-semibold mb-2" style={{ color: '#F0A500' }}>금액 요약</h3>
-                      <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm" style={{ color: '#94A3B8' }}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm" style={{ color: '#94A3B8' }}>
                         <div className="flex justify-between"><span>자재비</span><span className="font-mono">{fmt(r.result.matTotal)}</span></div>
                         <div className="flex justify-between"><span>노무비</span><span className="font-mono">{fmt(r.result.labTotal)}</span></div>
                         <div className="flex justify-between"><span>장비비</span><span className="font-mono">{fmt(r.result.equipTotal)}</span></div>

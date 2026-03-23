@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import { exportQuotesToExcel, type QuoteSlotData, type ExportRow } from '../../lib/quoteExcelExport';
+import {
+  makeDesign, calcEstimate, getDustTier,
+  REGION_DB as ENGINE_REGION_DB,
+  type QuoteInput, type CalcOpts,
+} from '@axis/engine';
 
 const REGION_DB: Record<string, {Vo:number}> = {
   서울:{Vo:26},경기북부:{Vo:26},경기남부:{Vo:26},경기서해안:{Vo:28},인천:{Vo:28},
@@ -60,6 +65,7 @@ export default function Premium() {
 
   const [tab, setTab] = useState<'price' | 'design' | 'struct' | 'env'>('price');
   const [bbMonths, setBbMonths] = useState(6);
+  const [gyeongbiOpen, setGyeongbiOpen] = useState(false);
   const [practical, setPractical] = useState<any>(null);
   const [standard, setStandard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -70,24 +76,28 @@ export default function Premium() {
   const len = store.length || 160;
   const floor = store.floorType || '파이프박기';
 
-  const fetchPremium = async () => {
+  // 엔진 직접 계산 (API 불필요)
+  useEffect(() => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data } = await api.get('/api/engine/premium', {
-        params: { len, panel, h, region, floor, bbMonths, asset: '전체고재', contract: '바이백', dustH: store.dustH || 0 },
-      });
-      setPractical(data['실전형']); setStandard(data['표준형']);
-    } catch {} finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchPremium(); }, [bbMonths]);
+      const dH = store.dustH || 0;
+      const dustN = getDustTier(dH);
+      const input: QuoteInput = { region, len, panel, h, floor, asset: '전체고재' as any, contract: '바이백' };
+      const opts: CalcOpts = { bbMonths, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: dH };
+      const dJ = makeDesign(h, floor, panel, false, dustN);
+      const dP = makeDesign(h, floor, panel, true, dustN);
+      setPractical({ design: dJ, result: calcEstimate(input, dJ, opts) });
+      setStandard({ design: dP, result: calcEstimate(input, dP, opts) });
+    } catch (e) { console.error('엔진 계산 오류:', e); }
+    finally { setLoading(false); }
+  }, [bbMonths, h, panel, region, len, floor]);
 
   const regionData = REGION_DB[region] || { Vo: 26 };
 
-  const structP = practical?.design ? calcStructure(regionData.Vo, h, practical.design.span, practical.design.embedM, panel) : null;
-  const structS = standard?.design ? calcStructure(regionData.Vo, h, standard.design.span, standard.design.embedM, panel) : null;
-  const envP = practical?.design ? calcEnvironment(panel, h, '실전형', practical.design.found, practical.design.embedM) : null;
-  const envS = standard?.design ? calcEnvironment(panel, h, '표준형', standard.design.found, standard.design.embedM) : null;
+  const structP = practical?.design ? calcStructure(regionData.Vo, h, practical.design.span, practical.design.gichoLength ?? 1.5, panel) : null;
+  const structS = standard?.design ? calcStructure(regionData.Vo, h, standard.design.span, standard.design.gichoLength ?? 2.0, panel) : null;
+  const envP = practical?.design ? calcEnvironment(panel, h, '실전형', practical.design.found, practical.design.gichoLength ?? 1.5) : null;
+  const envS = standard?.design ? calcEnvironment(panel, h, '표준형', standard.design.found, standard.design.gichoLength ?? 2.0) : null;
 
   const statusColor = (s: string) => s === 'PASS' ? 'text-[#10b981]' : s === 'WARN' ? 'text-[#d97706]' : 'text-[#ef4444]';
   const barColor = (s: string) => s === 'PASS' ? 'bg-[#10b981]' : s === 'WARN' ? 'bg-[#d97706]' : 'bg-[#ef4444]';
@@ -147,16 +157,93 @@ export default function Premium() {
 
         {/* 탭 내용 */}
         <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-lg p-6 mb-6">
-          {tab === 'price' && practical?.result && standard?.result && (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">표준형</th></tr></thead>
-              <tbody>
-                {[['자재비/M',practical.result.matM,standard.result.matM],['노무비/M',practical.result.labM,standard.result.labM],['자재 합계',practical.result.matTotal,standard.result.matTotal],['노무 합계',practical.result.labTotal,standard.result.labTotal],['장비/기초',practical.result.eqpTotal||0,standard.result.eqpTotal||0],['운반비',practical.result.transTotal,standard.result.transTotal],['BB차감',-practical.result.bbRefund,-standard.result.bbRefund],['총액',practical.result.rounded,standard.result.rounded]].map(([label,p,s],i)=>(
-                  <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {tab === 'price' && practical?.result && standard?.result && (() => {
+            const pR = practical.result;
+            const sR = standard.result;
+            const pGyeongbi = (pR.eqpTotal || 0) + (pR.transTotal || 0);
+            const sGyeongbi = (sR.eqpTotal || 0) + (sR.transTotal || 0);
+            const pTrans = pR.transDetail || {};
+            const sTrans = sR.transDetail || {};
+            const isBB = store.selectedCellKey?.includes('BB') || store.selectedCellKey?.includes('바이백');
+
+            return (
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">표준형</th></tr></thead>
+                <tbody>
+                  {[
+                    ['자재비/M', pR.matM, sR.matM],
+                    ['노무비/M', pR.labM, sR.labM],
+                    ['경비/M', len > 0 ? Math.round(pGyeongbi / len) : 0, len > 0 ? Math.round(sGyeongbi / len) : 0],
+                    ['자재 합계', pR.matTotal, sR.matTotal],
+                    ['노무 합계', pR.labTotal, sR.labTotal],
+                  ].map(([label, p, s], i) => (
+                    <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
+                  ))}
+                  {/* 경비 통합 행 (자재→노무 바로 다음) */}
+                  <tr className="border-b border-[#e5e7eb]/30 cursor-pointer hover:bg-[#f8fafc]" onClick={() => setGyeongbiOpen(!gyeongbiOpen)}>
+                    <td className="py-2 font-semibold">
+                      경비 합계 <span className="text-[10px] text-[#94a3b8] ml-1">{gyeongbiOpen ? '▲ 접기' : '▼ 상세보기'}</span>
+                    </td>
+                    <td className="text-right font-mono font-semibold">{fmt(pGyeongbi)}원</td>
+                    <td className="text-right font-mono font-semibold">{fmt(sGyeongbi)}원</td>
+                  </tr>
+                  {gyeongbiOpen && (
+                    <>
+                      {/* 장비 상세 (eqpDetail.items) */}
+                      {(pR.eqpDetail?.items || [{ name: '굴착기', qty: 1, amount: pR.eqpTotal || 0 }]).map((eq: any, ei: number) => {
+                        const sEq = (sR.eqpDetail?.items || [])[ei];
+                        return (
+                          <tr key={`eq${ei}`} className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ {eq.name} {eq.qty}대 × {fmt(eq.price || 0)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(eq.amount)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(sEq?.amount || eq.amount)}원</td>
+                          </tr>
+                        );
+                      })}
+                      {/* 운반 상세 (transDetail) */}
+                      {pTrans.trucks > 0 && (
+                        <>
+                          <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (편도)</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
+                          </tr>
+                          {isBB && (
+                            <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
+                              <td className="py-1.5 pl-4 text-xs text-[#64748b]">└ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (복로-바이백)</td>
+                              <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
+                              <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
+                            </tr>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                  {[
+                    ['BB차감', -pR.bbRefund, -sR.bbRefund],
+                    ['총액', pR.rounded, sR.rounded],
+                  ].map(([label, p, s], i) => (
+                    <tr key={`b${i}`} className={`border-b border-[#e5e7eb]/30 ${(label as string) === '총액' ? 'font-bold' : ''}`}><td className="py-2">{label as string}</td><td className="text-right font-mono">{fmt(p as number)}원</td><td className="text-right font-mono">{fmt(s as number)}원</td></tr>
+                  ))}
+                  {/* 기한후 월/일사용료 */}
+                  {(pR.monthlyRent > 0 || sR.monthlyRent > 0) && (
+                    <>
+                      <tr className="border-b border-[#e5e7eb]/30">
+                        <td className="py-2 text-[#0066CC]">기한후 월사용료</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(pR.monthlyRent)}원/월</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(sR.monthlyRent)}원/월</td>
+                      </tr>
+                      <tr className="border-b border-[#e5e7eb]/30">
+                        <td className="py-2 text-[#0066CC]">기한후 일사용료</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(pR.dailyRent)}원/일</td>
+                        <td className="text-right font-mono text-[#0066CC]">{fmt(sR.dailyRent)}원/일</td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            );
+          })()}
           {tab === 'design' && practical?.design && standard?.design && (
             <table className="w-full text-sm">
               <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">조건</th><th className="text-right text-[#2563eb]">실전형</th><th className="text-right text-[#d97706]">표준형</th></tr></thead>
@@ -168,7 +255,7 @@ export default function Premium() {
             </table>
           )}
           {tab === 'struct' && structP && structS && (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[{title:'실전형',data:structP,color:'#2563eb'},{title:'표준형',data:structS,color:'#d97706'}].map(({title,data,color})=>(
                 <div key={title}>
                   <h4 className="font-mono font-bold mb-3" style={{color}}>{title} — {data.overall}</h4>
@@ -183,7 +270,7 @@ export default function Premium() {
             </div>
           )}
           {tab === 'env' && envP && envS && (
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[{title:'실전형',data:envP,color:'#2563eb'},{title:'표준형',data:envS,color:'#d97706'}].map(({title,data,color})=>(
                 <div key={title}>
                   <h4 className="font-mono font-bold mb-1" style={{color}}>{title} — {data.grade}</h4>
@@ -206,7 +293,72 @@ export default function Premium() {
           <button onClick={()=>navigate(`/quote/level/${id}`)} className="flex-1 py-3 rounded-lg border border-[#d97706] text-[#d97706] font-bold hover:bg-[#d97706]/10">표준형 선택</button>
         </div>
 
-        <div className="text-xs text-[#94a3b8] bg-[#ffffff] rounded-lg p-4 border border-[#e5e7eb]">⚠ 구조판정/환경판정은 참고용이며 실제 구조설계가 아닙니다.</div>
+        {/* Excel 다운로드 */}
+        {practical?.result && standard?.result && (
+          <button
+            onClick={() => {
+              const buildRows = (data: any): ExportRow[] => {
+                const r = data.result;
+                const d = data.design;
+                const rows: ExportRow[] = [];
+                // 자재 BOM
+                if (r.bom) {
+                  const bomEntries = [
+                    { name: panel + '방음판', qty: r.bom.panelQty, cat: 'mat' as const },
+                    { name: '주주파이프', qty: r.bom.juju, cat: 'mat' as const },
+                    { name: '횡대파이프', qty: r.bom.hwCnt, cat: 'mat' as const },
+                    { name: '지주파이프', qty: r.bom.jiuju, cat: 'mat' as const },
+                    { name: '기초파이프', qty: r.bom.gichoQty, cat: 'mat' as const },
+                    { name: '고정클램프', qty: r.bom.gojung, cat: 'mat' as const },
+                    { name: '자동클램프', qty: r.bom.jadong, cat: 'mat' as const },
+                    { name: '연결핀', qty: r.bom.pin, cat: 'mat' as const },
+                  ].filter(b => b.qty > 0);
+                  for (const b of bomEntries) {
+                    rows.push({ name: b.name, spec: '', unit: 'EA', qty: b.qty, price: 0, amount: 0, finalAmount: 0, assetType: '', basis: '', category: b.cat });
+                  }
+                }
+                // 노무비
+                if (r.laborDetail) {
+                  if (r.laborDetail.installTotal > 0) rows.push({ name: '설치비', spec: '', unit: '식', qty: 1, price: r.laborDetail.installTotal, amount: r.laborDetail.installTotal, finalAmount: r.laborDetail.installTotal, assetType: '', basis: `${len}m`, category: 'labor' });
+                  if (r.laborDetail.removeTotal > 0) rows.push({ name: '해체비', spec: '', unit: '식', qty: 1, price: r.laborDetail.removeTotal, amount: r.laborDetail.removeTotal, finalAmount: r.laborDetail.removeTotal, assetType: '', basis: `${len}m`, category: 'labor' });
+                }
+                // 장비
+                for (const eq of (r.eqpDetail?.items || [{ name: '굴착기', qty: 1, price: r.eqpTotal, amount: r.eqpTotal }])) {
+                  rows.push({ name: eq.name, spec: '', unit: '대', qty: eq.qty, price: eq.price, amount: eq.amount, finalAmount: eq.amount, assetType: '', basis: '', category: 'equip' });
+                }
+                // 운반
+                if (r.transDetail?.trucks > 0) {
+                  rows.push({ name: `${r.transDetail.vehicle || '5톤'} 카고트럭`, spec: '', unit: '대', qty: r.transDetail.trucks, price: r.transDetail.perTruck, amount: r.transTotal, finalAmount: r.transTotal, assetType: '', basis: `${r.transDetail.trips}회`, category: 'trans' });
+                }
+                // 기한후 월사용료
+                if (r.monthlyRent > 0) {
+                  rows.push({ name: '기한후 월사용료', spec: '계약만료 후', unit: '월', qty: 1, price: r.monthlyRent, amount: r.monthlyRent, finalAmount: r.monthlyRent, assetType: '', basis: '품목별 월대여료율', category: 'rent' });
+                }
+                return rows;
+              };
+
+              const makeSlot = (label: string, data: any, mode: string): QuoteSlotData => ({
+                label, panel, height: h, length: len, asset: '전체고재', contract: '바이백',
+                mode, span: data.design?.span || 3, bbMonths,
+                matTotal: data.result.matTotal, labTotal: data.result.labTotal,
+                eqpTotal: data.result.eqpTotal, transTotal: data.result.transTotal,
+                gateTotal: data.result.gateTotal || 0, bbRefund: data.result.bbRefund,
+                total: data.result.total, totalPerM: data.result.totalPerM,
+                monthlyRent: data.result.monthlyRent || 0, dailyRent: data.result.dailyRent || 0,
+                rows: buildRows(data),
+              });
+
+              exportQuotesToExcel([
+                makeSlot('견적1-실전형', practical, '실전형'),
+                makeSlot('견적2-표준형', standard, '표준형'),
+              ], '', new Date().toISOString().slice(0, 10));
+            }}
+            className="w-full py-3 rounded-lg border border-[#334155] text-[#94A3B8] font-bold hover:bg-[#111B2A] mb-6">
+            📥 Excel 내역서 다운로드
+          </button>
+        )}
+
+        <div className="text-xs text-[#94a3b8] bg-[#ffffff] rounded-lg p-4 border border-[#e5e7eb] leading-relaxed">⚠ 본 견적은 과거 시공 데이터 기반 예상 범위이며, 구조설계 도서가 아닙니다. 구조 조건(경간/횡대/근입 등)은 참고용이며, 실제 시공 시 현장 여건에 따라 시공업체가 조정합니다. AXIS는 구조안전 설계를 제공하지 않으며, 시공 결과에 대한 설계 책임을 지지 않습니다. 정밀 구조검토가 필요한 경우 별도의 구조설계 전문업체에 의뢰하시기 바랍니다.</div>
       </div>
     </div>
   );

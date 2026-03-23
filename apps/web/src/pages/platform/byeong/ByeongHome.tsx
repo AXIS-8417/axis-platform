@@ -83,14 +83,14 @@ export default function ByeongHome() {
     return map[g] || '#64748B';
   };
 
-  if (loading) return <div className="p-8 text-center" style={{ color:'#64748B' }}>로딩 중...</div>;
+  if (loading) return <div className="p-4 md:p-8 text-center" style={{ color:'#64748B' }}>로딩 중...</div>;
 
   return (
-    <div className="p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background:'#070C12', minHeight:'100vh', color:'#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-6">병 대시보드</h1>
 
       {/* StatCards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <S label="R등급" value={stats.riskGrade} color={gradeColor(stats.riskGrade)} />
         <S label="교육이수" value={stats.eduStatus} color={stats.eduStatus === '충족' ? '#3B82F6' : '#F0A500'} />
         <S label="연속투입" value={`${stats.consecutiveDays}일`} color="#F0A500" />
@@ -98,7 +98,7 @@ export default function ByeongHome() {
       </div>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: AXIS 상태 */}
         <div style={card} className="rounded-lg p-6">
           <h2 className="text-sm font-bold mb-5" style={{ color: '#00D9CC' }}>AXIS 상태</h2>
@@ -125,7 +125,7 @@ export default function ByeongHome() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div style={{ background: '#111B2A', border: '1px solid #1E293B' }} className="rounded-lg p-3">
               <div className="text-xs" style={{ color: '#64748B' }}>연속투입</div>
               <div className="text-lg font-mono font-bold" style={{ color: '#F0A500' }}>{stats.consecutiveDays}일</div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import api from '../../lib/api';
 
 const card = { background: '#0C1520', border: '1px solid #1E293B' };
 const elevated = { background: '#111B2A', border: '1px solid #1E293B' };
@@ -39,7 +40,7 @@ const TRANSITION_RULES = [
   { from: 'START', to: 'COMPLETED', condition: 'BUTTON 또는 distance > DEPART_RADIUS + 자동종료' },
 ];
 
-const GPS_CONFIG = [
+const DEFAULT_GPS_CONFIG = [
   { key: 'ARRIVAL_RADIUS', value: '100m', desc: '도착 판정 반경' },
   { key: 'DEPART_RADIUS', value: '200m', desc: '이탈 판정 반경' },
   { key: 'STAY_MIN', value: '3분', desc: '최소 체류 시간' },
@@ -52,17 +53,67 @@ const GPS_CONFIG = [
 
 export default function GPSView() {
   const [selected, setSelected] = useState<number | null>(null);
+  const [timeline, setTimeline] = useState<GPSEvent[]>(MOCK_TIMELINE);
+  const [gpsConfig, setGpsConfig] = useState(DEFAULT_GPS_CONFIG);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.allSettled([
+      api.get('/api/platform/config'),
+      api.get('/api/platform/work-orders', { params: { limit: 1 } }),
+    ]).then(([configR, woR]) => {
+      // Load GPS config from platform config
+      if (configR.status === 'fulfilled' && configR.value.data) {
+        const cfg = configR.value.data;
+        if (cfg.gpsConfig || cfg.GPS_CONFIG) {
+          const raw = cfg.gpsConfig || cfg.GPS_CONFIG;
+          if (Array.isArray(raw)) {
+            setGpsConfig(raw);
+          } else if (typeof raw === 'object') {
+            setGpsConfig(Object.entries(raw).map(([key, val]: any) => ({
+              key,
+              value: typeof val === 'object' ? val.value : String(val),
+              desc: typeof val === 'object' ? val.desc : key,
+            })));
+          }
+        }
+      }
+
+      // Load recent work order GPS events if available
+      if (woR.status === 'fulfilled') {
+        const woData = woR.value.data?.items || woR.value.data?.data || [];
+        if (woData.length > 0 && woData[0].gpsEvents) {
+          const events: GPSEvent[] = woData[0].gpsEvents.map((e: any) => ({
+            type: e.type || e.eventType,
+            time: e.time || (e.timestamp ? new Date(e.timestamp).toLocaleTimeString('ko-KR') : '-'),
+            distance: e.distance || 0,
+            trigger: e.trigger || 'AUTO',
+          }));
+          if (events.length > 0) setTimeline(events);
+        }
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-8">
+        <h1 className="text-xl font-bold mb-2">GPS 엔진</h1>
+        <div className="text-sm animate-pulse" style={{ color: '#64748B' }}>로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <h1 className="text-xl font-bold mb-2">GPS 엔진</h1>
       <div className="text-xs mb-6" style={{ color: '#64748B' }}>PART258 - 자동전환 상태머신 기반 GPS 이벤트 타임라인</div>
 
       {/* Timeline */}
       <div style={card} className="rounded-lg p-6 mb-6">
         <h2 className="text-sm font-bold mb-4" style={{ color: '#00D9CC' }}>이벤트 타임라인</h2>
-        <div className="flex items-center gap-1 mb-6">
-          {MOCK_TIMELINE.map((ev, i) => (
+        <div className="flex items-center gap-1 mb-6 overflow-x-auto flex-wrap">
+          {timeline.map((ev, i) => (
             <div key={i} className="flex items-center">
               <button
                 onClick={() => setSelected(selected === i ? null : i)}
@@ -81,34 +132,34 @@ export default function GPSView() {
                 <div className="text-xs font-mono mt-2" style={{ color: EVENT_COLORS[ev.type] }}>{ev.type}</div>
                 <div className="text-xs mt-0.5" style={{ color: '#64748B' }}>{ev.time}</div>
               </button>
-              {i < MOCK_TIMELINE.length - 1 && (
+              {i < timeline.length - 1 && (
                 <div className="h-0.5 w-8 flex-shrink-0" style={{ background: '#1E293B' }} />
               )}
             </div>
           ))}
         </div>
 
-        {selected !== null && (
+        {selected !== null && timeline[selected] && (
           <div style={elevated} className="rounded-lg p-4">
-            <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-xs" style={{ color: '#64748B' }}>이벤트</span>
-                <div className="font-bold" style={{ color: EVENT_COLORS[MOCK_TIMELINE[selected].type] }}>
-                  {MOCK_TIMELINE[selected].type}
+                <div className="font-bold" style={{ color: EVENT_COLORS[timeline[selected].type] }}>
+                  {timeline[selected].type}
                 </div>
               </div>
               <div>
                 <span className="text-xs" style={{ color: '#64748B' }}>시간</span>
-                <div className="font-mono">{MOCK_TIMELINE[selected].time}</div>
+                <div className="font-mono">{timeline[selected].time}</div>
               </div>
               <div>
                 <span className="text-xs" style={{ color: '#64748B' }}>거리</span>
-                <div className="font-mono">{MOCK_TIMELINE[selected].distance}m</div>
+                <div className="font-mono">{timeline[selected].distance}m</div>
               </div>
               <div>
                 <span className="text-xs" style={{ color: '#64748B' }}>트리거</span>
-                <div className="font-mono" style={{ color: MOCK_TIMELINE[selected].trigger === 'AUTO' ? '#22C55E' : '#F0A500' }}>
-                  {MOCK_TIMELINE[selected].trigger}
+                <div className="font-mono" style={{ color: timeline[selected].trigger === 'AUTO' ? '#22C55E' : '#F0A500' }}>
+                  {timeline[selected].trigger}
                 </div>
               </div>
             </div>
@@ -116,7 +167,7 @@ export default function GPSView() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Auto Transition Conditions */}
         <div style={card} className="rounded-lg p-6">
           <h2 className="text-sm font-bold mb-4" style={{ color: '#F0A500' }}>자동 전환 조건 (6 Rules)</h2>
@@ -136,9 +187,9 @@ export default function GPSView() {
 
         {/* Policy Constants */}
         <div style={card} className="rounded-lg p-6">
-          <h2 className="text-sm font-bold mb-4" style={{ color: '#8B5CF6' }}>GPS_CONFIG 정책 상수 (8 Values)</h2>
+          <h2 className="text-sm font-bold mb-4" style={{ color: '#8B5CF6' }}>GPS_CONFIG 정책 상수 ({gpsConfig.length} Values)</h2>
           <div className="space-y-2">
-            {GPS_CONFIG.map((c, i) => (
+            {gpsConfig.map((c, i) => (
               <div key={i} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid #1E293B' }}>
                 <div>
                   <span className="text-sm font-mono font-semibold" style={{ color: '#8B5CF6' }}>{c.key}</span>

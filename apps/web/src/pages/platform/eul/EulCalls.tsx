@@ -67,7 +67,7 @@ export default function EulCalls() {
   const inputStyle = { background: '#111B2A', border: '1px solid #334155', color: '#F1F5F9' };
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">호출매칭</h1>
         <button onClick={() => setShowCall(!showCall)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#00D9CC', color: '#070C12' }}>
@@ -79,7 +79,7 @@ export default function EulCalls() {
       {showCall && (
         <div style={{ background: '#0C1520', border: '1px solid #1E293B' }} className="rounded-lg p-6 mb-6">
           <h2 className="text-sm font-semibold mb-4" style={{ color: '#00D9CC' }}>새 호출</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <label className="text-xs mb-1 block" style={{ color: '#64748B' }}>작업지시</label>
               <select value={selectedWorkId} onChange={e => setSelectedWorkId(e.target.value)} className="w-full px-3 py-2 rounded" style={inputStyle}>

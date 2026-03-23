@@ -40,8 +40,8 @@ function scaleFn(l: number) {
   return SCALE[SCALE.length - 1];
 }
 
-// HWP 확정표 §2.5 — 파이프타입 기준
-// 구조보강(표준형) 조건: 보조지주 Yes 또는 총높이>5m → 기본단수+1
+// HWP 확정표 §2.5 — 파이프타입 기준 (사용자 확인 완료 2026-03-21)
+// 6M 표준형=5단, 1~3M 표준형=실전형과 동일
 const XBAR: Record<string, Record<number, number>> = {
   실전형: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 7, 10: 7 },
   표준형: { 1: 2, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 7, 8: 8, 9: 8, 10: 8 },
@@ -338,7 +338,7 @@ export default function NewQuote() {
                   })}
                 </div>
                 {store.height > 0 && (
-                  <div className="bg-[#f8fafc] rounded-lg p-3 grid grid-cols-3 gap-2.5">
+                  <div className="bg-[#f8fafc] rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                     {([
                       ['구조 타입', stType(store.height, '실전형'), ''],
                       ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],

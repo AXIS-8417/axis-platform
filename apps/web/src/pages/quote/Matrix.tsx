@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../lib/api';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import {
+  calc8Matrix, getDustTier,
+  type CalcOpts,
+} from '@axis/engine';
 
 const ASSETS = ['전체고재', '전체신재', '판넬만신재', '파이프만신재'] as const;
 const GATES = [
@@ -88,23 +92,20 @@ export default function Matrix() {
   const len = store.length || 160;
   const sf = scaleFn(len);
 
-  const fetchMatrix = async () => {
+  // 엔진 직접 계산 (API 불필요)
+  useEffect(() => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data } = await api.get('/api/engine/matrix', {
-        params: {
-          len, panel, h, region: store.region||'경기남부', floor: store.floorType||'파이프박기',
-          bbMonths, gate, doorGrade: gateGrade, doorW: gateW, doorMesh: gateMesh, dustH: store.dustH||0,
-        },
-      });
-      setBbResults(data.bbResults||{}); setSellResults(data.sellResults||{});
-      setDesign(data.design||{}); setTrend(data.trend||'FLAT'); setError('');
+      const input = { region: store.region || '경기남부', len, panel, h, floor: store.floorType || '파이프박기' };
+      const floor = store.floorType || '파이프박기';
+      const opts: Partial<CalcOpts> = { bbMonths, gate, doorGrade: gateGrade, doorW: gateW, doorMesh: gateMesh, dustH: store.dustH || 0 };
+      const result = calc8Matrix(input, floor, opts);
+      setBbResults(result.bbResults || {}); setSellResults(result.sellResults || {});
+      setDesign(result.design || {}); setTrend('FLAT'); setError('');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.message || '계산 오류');
     } finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchMatrix(); }, [bbMonths, gate, gateGrade, gateW, gateH, gateMesh]);
+  }, [bbMonths, gate, gateGrade, gateW, gateH, gateMesh, h, panel, len]);
 
   const handleSelect = (asset: string, contract: string) => {
     const key = `${asset}_${contract}`;
@@ -287,7 +288,7 @@ export default function Matrix() {
               </span>
               <span className="ml-auto font-mono font-bold text-[18px] text-[#0f172a]">{fmt(sr.totalPerM)}원/M</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
               <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2.5">
                 <div className="text-[11px] text-[#94a3b8]">총 예상 ({gate !== '없음' ? '도어 포함' : '도어 제외'})</div>
                 <div className="font-bold text-[15px] text-[#0f172a] font-mono">{fmt(sr.rounded || sr.totalPerM * len)}원</div>
@@ -299,7 +300,7 @@ export default function Matrix() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-3 text-xs">
               <div className="bg-[#f9fafb] rounded p-2 text-center">
                 <div className="text-[#94a3b8]">재료비</div><div className="font-mono font-bold">{sr.pctMat}%</div>
                 <div className="h-1 bg-[#e5e7eb] rounded mt-1"><div className="h-1 rounded bg-[#2563eb]" style={{ width: `${sr.pctMat}%` }} /></div>
@@ -480,7 +481,7 @@ export default function Matrix() {
         {/* 설계 조건 */}
         <div className="bg-white border border-[#e5e7eb] rounded-xl p-4 mb-3">
           <h3 className="text-sm font-bold text-[#334155] mb-2">기준 설계 조건</h3>
-          <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
             <div>모드: <span className="text-[#2563eb] font-semibold">{design.mode}</span></div>
             <div>경간: <span className="text-[#2563eb] font-semibold">{design.span}M</span></div>
             <div>횡대: <span className="text-[#2563eb] font-semibold">{design.hwangdae}단</span></div>

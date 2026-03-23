@@ -143,7 +143,7 @@ export default function EulSettlement() {
   };
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">\uc815\uc0b0</h1>
         <button onClick={() => setShowCreate(!showCreate)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#00D9CC', color: '#070C12' }}>
@@ -172,7 +172,7 @@ export default function EulSettlement() {
       {showCreate && (
         <div style={card} className="rounded-lg p-6 mb-6">
           <h2 className="text-sm font-semibold mb-4" style={{ color: '#00D9CC' }}>\uc0c8 \uccad\uad6c \uc0dd\uc131</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <label className="text-xs mb-1 block" style={{ color: '#64748B' }}>\uc791\uc5c5\uc9c0\uc2dc</label>
               <select value={formWorkId} onChange={e => { setFormWorkId(e.target.value); const wo = workOrders.find((w: any) => w.workId === e.target.value); if (wo) setFormSiteId(wo.siteId || ''); }}

@@ -49,7 +49,7 @@ export default function Home() {
             <h2 className="text-sm font-semibold" style={{ color: '#F0A500' }}>견적엔진</h2>
             <span className="text-xs px-2 py-0.5 rounded font-bold" style={{ background: '#22C55E20', color: '#22C55E' }}>FREE</span>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <Link to="/quote/new" className="rounded-lg p-6 transition-all hover:opacity-90" style={{ background: '#0C1520', border: '2px solid #00D9CC' }}>
               <div className="text-2xl mb-3">📐</div>
               <div className="font-bold mb-1" style={{ color: '#00D9CC' }}>간편견적</div>
@@ -72,7 +72,7 @@ export default function Home() {
         {/* 3자 플랫폼 */}
         <div className="mb-10">
           <h2 className="text-sm font-semibold mb-4" style={{ color: '#3B82F6' }}>건설 3자 계약관리 플랫폼</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {ROLES.map(r => (
               <Link key={r.key} to={token ? r.path : '/platform/login'} className="rounded-lg p-6 transition-all hover:opacity-90"
                 style={{ background: '#0C1520', border: `2px solid ${r.color}` }}>
@@ -87,7 +87,7 @@ export default function Home() {
         {/* 시스템 기능 */}
         <div className="mb-10">
           <h2 className="text-sm font-semibold mb-4" style={{ color: '#8B5CF6' }}>시스템 기능</h2>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
               { icon: '📊', label: '대시보드', path: '/platform/dashboard' },
               { icon: '📡', label: 'GPS 엔진', path: '/platform/gps' },
@@ -107,7 +107,7 @@ export default function Home() {
         {/* CANON 원칙 */}
         <div style={{ background: '#0C1520', border: '1px solid #1E293B' }} className="rounded-lg p-6 mb-8">
           <div className="text-xs font-semibold mb-4" style={{ color: '#8B5CF6' }}>CANON v14 — 핵심 원칙</div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {[
               ['🔒 기록 중심', '사실만 기록. 판단하지 않음', '#00D9CC'],
               ['⚡ 판단 배제', '결론·추천·귀책 판단 불가', '#3B82F6'],
@@ -122,7 +122,7 @@ export default function Home() {
         </div>
 
         {/* 통계 */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[['26+', 'DB 테이블'], ['54', 'API 엔드포인트'], ['46', '코드그룹'], ['759', '시공 데이터']].map(([v, l]) => (
             <div key={l} className="text-center p-4 rounded-lg" style={{ background: '#0C1520', border: '1px solid #1E293B' }}>
               <div className="font-mono font-bold text-xl" style={{ color: '#00D9CC' }}>{v}</div>

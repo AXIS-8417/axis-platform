@@ -34,7 +34,7 @@ export default function ByeongCalls() {
   const pastCalls = calls.filter(c => c.callStatus !== '호출중');
 
   return (
-    <div className="p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
+    <div className="p-4 md:p-8" style={{ background: '#070C12', minHeight: '100vh', color: '#F1F5F9' }}>
       <h1 className="text-xl font-bold mb-4">호출 수신</h1>
 
       {/* Rights message */}
