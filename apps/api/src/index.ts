@@ -18,6 +18,14 @@ import {
   QuoteInput,
   Design,
 } from '@axis/engine';
+import {
+  calcSimpleEstimate, calcSimple8Matrix,
+  calcBBDeduction, calcMonthlyRental,
+  calcDoorEstimate,
+  getScaleFactor, calcCorrections,
+  calcEstimateV2, calc8MatrixV2,
+  type SimpleEstimateInput, type BBItem, type DoorInput,
+} from '@axis/engine';
 
 // ── Setup ────────────────────────────────────────────────────
 const prisma = new PrismaClient();
@@ -1112,6 +1120,75 @@ app.post('/api/quotes/:id/kakao', {
   });
 
   return reply.status(201).send({ message: '카카오톡 전송이 기록되었습니다.', send, linkUrl });
+});
+
+// ═════════════════════════════════════════════════════════════
+// NEW ENGINE V2 ROUTES
+// ═════════════════════════════════════════════════════════════
+
+// ── Simple 8-Matrix (bucket-based, gap 간편견적) ─────────────
+app.get('/api/engine/simple-matrix', async (req, reply) => {
+  const { panel, height, len, bbMonths, hasDoor } = req.query as any;
+  const result = calcSimple8Matrix(
+    panel || 'EGI',
+    parseFloat(height) || 2.4,
+    parseFloat(len) || 100,
+    parseInt(bbMonths) || 6,
+    hasDoor === 'true',
+  );
+  return { matrix: result, disclaimer: 'AXIS 간편견적 — 364건 실전 데이터 기반 추정치' };
+});
+
+// ── BB Depreciation Calculation ──────────────────────────────
+app.post('/api/engine/bb-calc', async (req, reply) => {
+  const { items, months } = req.body as { items: BBItem[]; months: number };
+  const bbResult = calcBBDeduction(items, months);
+  const rentalResult = calcMonthlyRental(items);
+  return { bb: bbResult, rental: rentalResult };
+});
+
+// ── Door Estimate ────────────────────────────────────────────
+app.post('/api/engine/door-calc', async (req, reply) => {
+  const input = req.body as DoorInput;
+  const result = calcDoorEstimate(input);
+  return result;
+});
+
+// ── Scale Correction Info ────────────────────────────────────
+app.get('/api/engine/scale-info', async (req, reply) => {
+  const len = parseFloat((req.query as any).len) || 100;
+  const { band, factor } = getScaleFactor(len);
+  return { length: len, band: band.label, factor, medianPerM: band.medianPerM };
+});
+
+// ── Full V2 Matrix (all new engines) ─────────────────────────
+app.post('/api/engine/v2/matrix', async (req, reply) => {
+  const input = req.body as any;
+  const baseInput = {
+    region: input.region || '경기남부',
+    panel: input.panel || 'EGI',
+    h: parseFloat(input.h) || 2.4,
+    len: parseFloat(input.len) || 100,
+    floor: input.floor || '기초파이프',
+    constructionType: input.constructionType || '파이프',
+    warehouseKey: input.warehouseKey,
+    destKey: input.destKey,
+    noLargeTruck: input.noLargeTruck || false,
+    address: input.address,
+  };
+  const opts = {
+    bbMonths: parseInt(input.bbMonths) || 6,
+    gate: input.gate || '없음',
+    doorGrade: input.doorGrade || '신재',
+    doorW: parseFloat(input.doorW) || 4,
+    doorMesh: input.doorMesh || false,
+    dustH: parseFloat(input.dustH) || 0,
+    runStructural: input.runStructural || false,
+    runEnv: input.runEnv || false,
+  };
+  const result = calc8MatrixV2(baseInput, input.floor || '기초파이프', opts);
+  const { band, factor } = getScaleFactor(parseFloat(input.len) || 100);
+  return { ...result, scaleInfo: { band: band.label, factor } };
 });
 
 // ── Platform Routes Plugin ─────────────────────────────────

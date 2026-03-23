@@ -64,7 +64,20 @@ export default function GapHome() {
                 <div className="text-sm">{s.siteName}</div>
                 <div className="text-xs" style={{ color: '#64748B' }}>{s.address}</div>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded" style={{ background: s.status === '진행' ? '#22C55E20' : '#64748B20', color: s.status === '진행' ? '#22C55E' : '#64748B' }}>{s.status}</span>
+              <span className="text-xs px-2 py-0.5 rounded" style={{
+                background: s.status === '진행' ? '#22C55E20'
+                  : s.status === '완료' ? '#3B82F620'
+                  : s.status === '취소' ? '#64748B20'
+                  : s.status === '경고' ? '#EAB30820'
+                  : s.status === '위험' ? '#EF444420'
+                  : '#64748B20',
+                color: s.status === '진행' ? '#22C55E'
+                  : s.status === '완료' ? '#3B82F6'
+                  : s.status === '취소' ? '#64748B'
+                  : s.status === '경고' ? '#EAB308'
+                  : s.status === '위험' ? '#EF4444'
+                  : '#64748B',
+              }}>{s.status}</span>
             </div>
           ))}
         </div>
@@ -99,6 +112,7 @@ export default function GapHome() {
           <Link to="/platform/gap/records" className="px-4 py-2 rounded text-sm" style={{ border: '1px solid #334155', color: '#94A3B8' }}>📋 작업기록</Link>
           <Link to="/platform/gap/documents" className="px-4 py-2 rounded text-sm" style={{ border: '1px solid #334155', color: '#94A3B8' }}>📁 서류조회</Link>
           <Link to="/platform/gap/billing" className="px-4 py-2 rounded text-sm" style={{ border: '1px solid #334155', color: '#94A3B8' }}>💰 청구확인</Link>
+          <Link to="/platform/gap/design-change" className="px-4 py-2 rounded text-sm" style={{ border: '1px solid #334155', color: '#94A3B8' }}>📝 설계변경</Link>
         </div>
       </div>
     </div>

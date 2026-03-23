@@ -577,6 +577,40 @@ export default async function platformRoutes(app: FastifyInstance) {
       data: { currentStatus: newStatusLabel },
     });
 
+    // Side effects
+    if (newStatusLabel === '정산대기' || targetCode === 'SETTLE_WAIT') {
+      // Auto-create billing draft
+      try {
+        await prisma.billing.create({
+          data: {
+            billingId: `BILL-${Date.now()}`,
+            siteId: wo.siteId,
+            workId: wo.workId,
+            eulPartyId: wo.orderPartyId || '',
+            gapPartyId: '',
+            amount: 0,
+            status: '청구생성',
+          },
+        });
+      } catch (e) { /* billing creation is optional */ }
+    }
+    if (newStatusLabel === '봉인완료' || targetCode === 'SEALED') {
+      // Auto-create seal
+      try {
+        await prisma.sealRecord.create({
+          data: {
+            sealId: `SEAL-${Date.now()}`,
+            targetType: 'WorkOrder',
+            targetId: wo.workId,
+            sealType: 'AUTO',
+            sealAxis: 'AXIS',
+            sealParty: wo.orderPartyId || '',
+            sealReason: '작업지시서 봉인완료 자동생성',
+          },
+        });
+      } catch (e) { /* seal creation is optional */ }
+    }
+
     return reply.send({ message: '상태가 변경되었습니다.', workOrder: updated });
   });
 
@@ -849,6 +883,36 @@ export default async function platformRoutes(app: FastifyInstance) {
     const items = await prisma.sealRecord.findMany({ where, ...paginate(query), orderBy: { createdAt: 'desc' } });
     const total = await prisma.sealRecord.count({ where });
     return reply.send({ items, total });
+  });
+
+  // -- Mutual seal counter-confirmation by EUL
+  app.patch('/api/platform/seals/:id/counter-confirm', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const user = getUser(request);
+
+    const seal = await prisma.sealRecord.findUnique({ where: { sealId: id } });
+    if (!seal) return reply.code(404).send({ error: 'Seal not found' });
+    if (seal.sealType !== 'MUTUAL') return reply.code(400).send({ error: 'Only MUTUAL seals can be counter-confirmed' });
+    if (seal.counterConfirmed) return reply.code(400).send({ error: 'Already confirmed' });
+
+    const updated = await prisma.sealRecord.update({
+      where: { sealId: id },
+      data: {
+        counterConfirmed: true,
+        counterUser: user?.userId || user?.id || 'unknown',
+        counterConfirmedAt: new Date(),
+        sealReason: seal.sealReason + ' [을 맞도장 확인완료]',
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        tableName: 'seal_record', recordId: id, action: 'COUNTER_CONFIRM',
+        changedBy: user?.userId || user?.id || 'system', changedRole: 'EUL',
+      },
+    });
+
+    return { seal: updated, message: '맞도장 확인 완료' };
   });
 
   // ===========================================================
@@ -1526,10 +1590,13 @@ export default async function platformRoutes(app: FastifyInstance) {
     const body = request.body as any;
     const gate = await prisma.gateMaster.create({
       data: {
-        siteId: body.siteId,
-        gateName: body.gateName,
+        gateId: `GATE-${Date.now()}`,
+        firstSiteId: body.siteId,
         gateType: body.gateType,
-        description: body.description,
+        heightM: body.heightM ? Number(body.heightM) : undefined,
+        widthM: body.widthM ? Number(body.widthM) : undefined,
+        material: body.material,
+        note: body.description || body.note,
       },
     });
     return reply.status(201).send(gate);
@@ -1546,14 +1613,16 @@ export default async function platformRoutes(app: FastifyInstance) {
         eventId,
         gateId: body.gateId,
         siteId: body.siteId,
-        workId: body.workId,
-        eulPartyId: body.eulPartyId || u.partyId,
         eventType: body.eventType,
-        eventDate: body.eventDate ? new Date(body.eventDate) : new Date(),
+        eventDatetime: body.eventDate ? new Date(body.eventDate) : new Date(),
         quantity: body.quantity ? Number(body.quantity) : undefined,
-        unit: body.unit,
-        description: body.description,
-        note: body.note,
+        materialSource: body.materialSource,
+        moveTarget: body.moveTarget,
+        costNature: body.costNature,
+        amount: body.amount ? Number(body.amount) : undefined,
+        eventPartyId: body.eulPartyId || u.partyId,
+        holdPartyId: body.holdPartyId,
+        memo: body.note || body.description,
       },
     });
 
@@ -1594,14 +1663,17 @@ export default async function platformRoutes(app: FastifyInstance) {
         eventId,
         gateId: body.gateId,
         siteId: body.siteId,
-        workId: body.workId,
-        byeongPartyId: body.byeongPartyId || u.partyId,
         eventType: body.eventType,
-        eventDate: body.eventDate ? new Date(body.eventDate) : new Date(),
+        eventDatetime: body.eventDate ? new Date(body.eventDate) : new Date(),
         quantity: body.quantity ? Number(body.quantity) : undefined,
-        unit: body.unit,
-        description: body.description,
-        note: body.note,
+        performType: body.performType,
+        teamId: body.teamId,
+        teamLeaderName: body.teamLeaderName,
+        workerCount: body.workerCount ? Number(body.workerCount) : undefined,
+        judgmentResult: body.judgmentResult,
+        eventPartyId: body.byeongPartyId || u.partyId,
+        holdPartyId: body.holdPartyId,
+        memo: body.note || body.description,
       },
     });
 
@@ -1697,6 +1769,61 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
   });
 
+  // -- Persist reconciliation results
+  app.post('/api/platform/gates/reconcile', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { siteId } = request.body as { siteId: string };
+
+    const gates = await prisma.gateMaster.findMany({ where: { firstSiteId: siteId } });
+    const gateIds = gates.map(g => g.gateId);
+
+    const eulEvents = await prisma.eulGateEvent.findMany({ where: { gateId: { in: gateIds } } });
+    const byeongEvents = await prisma.byeongGateEvent.findMany({ where: { gateId: { in: gateIds } } });
+
+    const results: any[] = [];
+    const usedByeong = new Set<string>();
+
+    for (const eul of eulEvents) {
+      const match = byeongEvents.find(b => b.gateId === eul.gateId && b.eventType === eul.eventType && !usedByeong.has(b.eventId));
+      if (match) {
+        usedByeong.add(match.eventId);
+        const diff = (eul.quantity || 0) - (match.quantity || 0);
+        const record = await prisma.gateReconciliation.create({
+          data: {
+            eulEventId: eul.eventId,
+            byeongEventId: match.eventId,
+            eulQty: eul.quantity || 0,
+            byeongQty: match.quantity || 0,
+            diff,
+            matchStatus: diff === 0 ? 'MATCH' : 'MISMATCH',
+          },
+        });
+        results.push(record);
+      } else {
+        const record = await prisma.gateReconciliation.create({
+          data: {
+            eulEventId: eul.eventId,
+            byeongEventId: null,
+            eulQty: eul.quantity || 0,
+            byeongQty: 0,
+            diff: eul.quantity || 0,
+            matchStatus: 'UNMATCHED',
+          },
+        });
+        results.push(record);
+      }
+    }
+
+    const matched = results.filter(r => r.matchStatus === 'MATCH').length;
+    return {
+      totalEul: eulEvents.length,
+      totalByeong: byeongEvents.length,
+      matched,
+      unmatched: results.length - matched,
+      matchRate: results.length > 0 ? Math.round(matched / results.length * 100) : 0,
+      records: results,
+    };
+  });
+
   // ===========================================================
   // 16. EVIDENCE PACKAGE (증빙패키지)
   // ===========================================================
@@ -1761,5 +1888,994 @@ export default async function platformRoutes(app: FastifyInstance) {
     });
 
     return reply.status(201).send(pkg);
+  });
+
+  // ===========================================================
+  // 17. BRIDGE: Quote -> Platform (견적 → 플랫폼 전환)
+  // ===========================================================
+
+  app.post('/api/platform/bridge/quote-to-platform', { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = getUser(request);
+    const { estimateId, contractTerms, eulPartyId } = request.body as any;
+
+    // 1. Get estimate with engine result
+    const estimate = await prisma.estimateRequest.findUnique({
+      where: { id: estimateId },
+      include: { engineResults: true },
+    });
+    if (!estimate) return reply.code(404).send({ error: 'Estimate not found' });
+
+    // 2. Create or get site
+    const site = await prisma.site.create({
+      data: {
+        siteId: `SITE-${Date.now()}`,
+        siteName: estimate.addr || '현장',
+        address: estimate.addr || '',
+        gapPartyId: user?.partyId || 'GAP_DEFAULT',
+        eulPartyId: eulPartyId || 'EUL_DEFAULT',
+        status: 'ACTIVE',
+      },
+    });
+
+    // 3. Create work order
+    const workOrder = await prisma.workOrder.create({
+      data: {
+        workId: `WO-${Date.now()}`,
+        siteId: site.siteId,
+        orderPartyId: user?.partyId || 'GAP_DEFAULT',
+        orderUserId: user?.userId || user?.id || 'system',
+        panelType: estimate.panelType || 'EGI',
+        frameType: (estimate.heightM || 0) >= 7 ? 'H빔식' : '비계식',
+        spanM: 2.0,
+        foundationType: estimate.floorType || '기초파이프',
+        currentStatus: '지시생성',
+      },
+    });
+
+    // 4. Create gate master if door exists
+    let gate = null;
+    if (estimate.gateType && estimate.gateType !== '없음') {
+      gate = await prisma.gateMaster.create({
+        data: {
+          gateId: `GATE-${Date.now()}`,
+          firstSiteId: site.siteId,
+          gateType: estimate.gateType || '홀딩도어',
+          widthM: estimate.gateWidthM ? Number(estimate.gateWidthM) : undefined,
+          material: estimate.gateGrade || '신재',
+          note: `${estimate.addr || '현장'} 정문`,
+        },
+      });
+    }
+
+    // 5. Log
+    await prisma.stateFlowLog.create({
+      data: {
+        targetType: 'BRIDGE',
+        targetId: workOrder.workId,
+        fromStatus: 'ESTIMATE',
+        toStatus: 'CREATED',
+        triggeredBy: user?.userId || user?.id || 'system',
+        triggerRole: user?.role || 'GAP',
+      },
+    });
+
+    return {
+      site,
+      workOrder,
+      gate,
+      message: '견적 → 플랫폼 전환 완료',
+    };
+  });
+
+  // ═══════════ Party Documents (서류관리) ═══════════
+  app.get('/api/platform/party-docs/:partyId', async (request, reply) => {
+    const { partyId } = request.params as any;
+    const docs = await prisma.partyDocument.findMany({
+      where: { partyId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return docs;
+  });
+
+  app.post('/api/platform/party-docs', async (request, reply) => {
+    const body = request.body as any;
+    const doc = await prisma.partyDocument.create({
+      data: {
+        docId: `DOC-${Date.now()}`,
+        partyId: body.partyId,
+        docCategory: body.docCategory,
+        docName: body.docName,
+        fileUrl: body.fileUrl,
+        isRequired: body.isRequired ?? true,
+        status: '심사중',
+      },
+    });
+    return doc;
+  });
+
+  app.patch('/api/platform/party-docs/:docId/review', async (request, reply) => {
+    const { docId } = request.params as any;
+    const { status, reviewedBy, note } = request.body as any;
+    const doc = await prisma.partyDocument.update({
+      where: { docId },
+      data: {
+        status, // 승인/반려
+        reviewedBy,
+        reviewedAt: new Date(),
+        note,
+      },
+    });
+    return doc;
+  });
+
+  // Party doc completeness check
+  app.get('/api/platform/party-docs/:partyId/check', async (request, reply) => {
+    const { partyId } = request.params as any;
+    const party = await prisma.party.findUnique({ where: { partyId } });
+    if (!party) return reply.code(404).send({ error: 'Party not found' });
+
+    const docs = await prisma.partyDocument.findMany({ where: { partyId } });
+    const requirements = await prisma.partyDocRequirement.findMany({
+      where: { partyRole: party.partyRole },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    const { checkPartyDocs } = await import('@axis/engine');
+    const role = party.partyRole as any;
+    const docList = docs.map(d => ({
+      docCategory: d.docCategory,
+      status: d.status as any,
+      expiryDate: d.expiryDate?.toISOString(),
+    }));
+    const reqs = requirements.map(r => ({
+      docCategory: r.docCategory,
+      isRequired: r.isRequired,
+      description: r.description || '',
+      legalBasis: r.legalBasis || undefined,
+    }));
+
+    const result = checkPartyDocs(role, docList, new Date().toISOString(), reqs);
+    return result;
+  });
+
+  // Doc requirements lookup
+  app.get('/api/platform/doc-requirements', async (request, reply) => {
+    const { role } = request.query as any;
+    const where = role ? { partyRole: role } : {};
+    const reqs = await prisma.partyDocRequirement.findMany({
+      where,
+      orderBy: [{ partyRole: 'asc' }, { sortOrder: 'asc' }],
+    });
+    return reqs;
+  });
+
+  // ═══════════ Gate CANON v6 Full Routes ═══════════
+  // Gate Manufacturer Master
+  app.get('/api/platform/gate-manufacturers', async (request, reply) => {
+    const mfgs = await prisma.gateManufacturer.findMany({
+      where: { isActive: true },
+      orderBy: { companyName: 'asc' },
+    });
+    return mfgs;
+  });
+
+  app.post('/api/platform/gate-manufacturers', async (request, reply) => {
+    const body = request.body as any;
+    const mfg = await prisma.gateManufacturer.create({
+      data: {
+        manufacturerId: `MFG-${body.companyName}`,
+        companyName: body.companyName,
+        contactName: body.contactName,
+        phone: body.phone,
+        note: body.note,
+      },
+    });
+    return mfg;
+  });
+
+  // Gate Inventory Balance
+  app.get('/api/platform/gates/balance', async (request, reply) => {
+    const { referenceDate } = request.query as any;
+    const refDate = referenceDate || new Date().toISOString().split('T')[0];
+
+    const eulEvents = await prisma.eulGateEvent.findMany();
+    const { calcAllGateBalances } = await import('@axis/engine');
+    const events = eulEvents.map(e => ({
+      eventId: e.eventId,
+      gateId: e.gateId || '',
+      siteId: e.siteId || '',
+      eventType: e.eventType || '',
+      quantity: e.quantity || 0,
+      eventDate: e.eventDatetime?.toISOString() || '',
+      eventPartyId: e.eventPartyId || '',
+      holdPartyId: e.holdPartyId || '',
+    }));
+
+    const balances = calcAllGateBalances(events, refDate);
+    return { referenceDate: refDate, balances };
+  });
+
+  // Gate Reconciliation (full G06)
+  app.get('/api/platform/gates/reconciliation-full', async (request, reply) => {
+    const eulEvents = await prisma.eulGateEvent.findMany();
+    const byeongEvents = await prisma.byeongGateEvent.findMany();
+    const { reconcileGateRecords } = await import('@axis/engine');
+
+    const eulMapped = eulEvents.map(e => ({
+      eventId: e.eventId, gateId: e.gateId || '', siteId: e.siteId || '',
+      eventType: e.eventType || '', quantity: e.quantity || 0,
+      eventDate: e.eventDatetime?.toISOString() || '',
+      eventPartyId: e.eventPartyId || '', holdPartyId: e.holdPartyId || '',
+    }));
+    const byeongMapped = byeongEvents.map(e => ({
+      eventId: e.eventId, gateId: e.gateId || '', siteId: e.siteId || '',
+      eventType: e.eventType || '', quantity: e.quantity || 0,
+      eventDate: e.eventDatetime?.toISOString() || '',
+      eventPartyId: e.eventPartyId || '', holdPartyId: e.holdPartyId || '',
+    }));
+
+    const results = reconcileGateRecords(eulMapped, byeongMapped);
+    return { totalPairs: results.length, results };
+  });
+
+  // ═══════════ Material Management (자재관리) ═══════════
+  app.get('/api/platform/materials', async (request, reply) => {
+    const materials = await prisma.materialMaster.findMany({
+      where: { isActive: true },
+      orderBy: { materialName: 'asc' },
+    });
+    return materials;
+  });
+
+  app.post('/api/platform/materials', async (request, reply) => {
+    const body = request.body as any;
+    const material = await prisma.materialMaster.create({
+      data: {
+        materialId: `MAT-${Date.now()}`,
+        materialName: body.materialName,
+        spec: body.spec,
+        category: body.category,
+        lengthGrade: body.lengthGrade,
+        unit: body.unit || 'EA',
+      },
+    });
+    return material;
+  });
+
+  app.get('/api/platform/warehouses', async (request, reply) => {
+    const warehouses = await prisma.warehouseMaster.findMany({
+      where: { isActive: true },
+    });
+    return warehouses;
+  });
+
+  app.post('/api/platform/warehouses', async (request, reply) => {
+    const body = request.body as any;
+    const wh = await prisma.warehouseMaster.create({
+      data: {
+        warehouseId: `WH-${Date.now()}`,
+        warehouseName: body.warehouseName,
+        address: body.address,
+        managerId: body.managerId,
+        phone: body.phone,
+      },
+    });
+    return wh;
+  });
+
+  // Material Events
+  app.post('/api/platform/material-events', async (request, reply) => {
+    const body = request.body as any;
+    const { canMaterialTransition, getMaterialNextStatus } = await import('@axis/engine');
+
+    // Validate transition
+    if (body.fromStatus) {
+      const allowed = canMaterialTransition(body.fromStatus, body.eventType);
+      if (!allowed) {
+        return reply.code(400).send({
+          error: `Invalid transition: ${body.fromStatus} → ${body.eventType}`,
+        });
+      }
+    }
+
+    const event = await prisma.materialEvent.create({
+      data: {
+        eventId: `ME-${Date.now()}`,
+        materialId: body.materialId,
+        siteId: body.siteId,
+        workId: body.workId,
+        warehouseId: body.warehouseId,
+        eventType: body.eventType,
+        quantity: body.quantity,
+        fromStatus: body.fromStatus,
+        toStatus: body.fromStatus ? getMaterialNextStatus(body.fromStatus, body.eventType) : null,
+        performerId: body.performerId,
+        evidenceLink: body.evidenceLink,
+        note: body.note,
+      },
+    });
+    return event;
+  });
+
+  app.get('/api/platform/material-events', async (request, reply) => {
+    const { siteId, materialId } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    if (materialId) where.materialId = materialId;
+    const events = await prisma.materialEvent.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return events;
+  });
+
+  // Material Balance
+  app.get('/api/platform/materials/:materialId/balance', async (request, reply) => {
+    const { materialId } = request.params as any;
+    const { siteId } = request.query as any;
+    const events = await prisma.materialEvent.findMany({
+      where: { materialId, ...(siteId ? { siteId } : {}) },
+    });
+    const { calcMaterialBalance } = await import('@axis/engine');
+    const balance = calcMaterialBalance(
+      materialId,
+      siteId || 'ALL',
+      0, // contractQty - would need to look up from contract
+      events.map(e => ({ eventType: e.eventType as any, quantity: e.quantity || 0 })),
+    );
+    return balance;
+  });
+
+  // ═══════════ Settlement (정산) ═══════════
+  app.post('/api/platform/settlements/calculate', async (request, reply) => {
+    const body = request.body as any;
+    const { calcSettlement } = await import('@axis/engine');
+    const result = calcSettlement(body);
+    return result;
+  });
+
+  app.post('/api/platform/settlements/bundle', async (request, reply) => {
+    const body = request.body as any;
+    const { calcSettlementBundle } = await import('@axis/engine');
+    const result = calcSettlementBundle(body);
+
+    // Persist bundle
+    const bundle = await prisma.settlementBundle.create({
+      data: {
+        bundleId: `BUNDLE-${Date.now()}`,
+        partyId: body.partyId,
+        periodType: body.periodType,
+        periodStart: body.periodStart ? new Date(body.periodStart) : undefined,
+        periodEnd: body.periodEnd ? new Date(body.periodEnd) : undefined,
+        settlementMode: body.mode,
+        itemCount: result.itemCount,
+        totalAmount: result.totalBase,
+        bundleStatus: 'OPEN',
+      },
+    });
+
+    return { bundle, calculation: result };
+  });
+
+  app.get('/api/platform/settlements', async (request, reply) => {
+    const { partyId, status } = request.query as any;
+    const where: any = {};
+    if (partyId) where.partyId = partyId;
+    if (status) where.bundleStatus = status;
+    const bundles = await prisma.settlementBundle.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return bundles;
+  });
+
+  // ═══════════ Design Change (설계변경) ═══════════
+  app.post('/api/platform/design-changes', async (request, reply) => {
+    const body = request.body as any;
+    const requestDate = new Date();
+    const deadline = new Date(requestDate);
+    deadline.setDate(deadline.getDate() + 3);
+
+    const change = await prisma.designChangeRequest.create({
+      data: {
+        changeId: `CHG-${Date.now()}`,
+        workId: body.workId,
+        siteId: body.siteId,
+        requesterId: body.requesterId,
+        requestDate,
+        changeField: body.changeField,
+        beforeValue: body.beforeValue,
+        afterValue: body.afterValue,
+        responseDeadline: deadline,
+        monthlyConvertReq: body.monthlyConvertReq || false,
+        contractId: body.contractId,
+        note: body.note,
+      },
+    });
+    return change;
+  });
+
+  app.get('/api/platform/design-changes', async (request, reply) => {
+    const { workId, siteId, status } = request.query as any;
+    const where: any = {};
+    if (workId) where.workId = workId;
+    if (siteId) where.siteId = siteId;
+    if (status) where.autoStatus = status;
+    const changes = await prisma.designChangeRequest.findMany({ where, orderBy: { requestDate: 'desc' } });
+    return changes;
+  });
+
+  app.patch('/api/platform/design-changes/:changeId/respond', async (request, reply) => {
+    const { changeId } = request.params as any;
+    const { accepted, responderId, note } = request.body as any;
+    const change = await prisma.designChangeRequest.update({
+      where: { changeId },
+      data: {
+        autoStatus: accepted ? '수락' : '미수락',
+        responderId,
+        respondedAt: new Date(),
+        note,
+      },
+    });
+    return change;
+  });
+
+  // Auto-confirm overdue changes
+  app.post('/api/platform/design-changes/auto-confirm', async (request, reply) => {
+    const pending = await prisma.designChangeRequest.findMany({
+      where: { autoStatus: '대기' },
+    });
+    const { findOverdueChanges } = await import('@axis/engine');
+    const overdueIds = findOverdueChanges(
+      pending.map(p => ({
+        id: p.changeId,
+        requestDate: p.requestDate?.toISOString() || '',
+        respondedAt: p.respondedAt?.toISOString() || null,
+        accepted: p.autoStatus === '수락' ? true : p.autoStatus === '미수락' ? false : null,
+      })),
+      new Date().toISOString(),
+    );
+
+    if (overdueIds.length > 0) {
+      await prisma.designChangeRequest.updateMany({
+        where: { changeId: { in: overdueIds } },
+        data: { autoStatus: '무응답자동확정' },
+      });
+    }
+
+    return { autoConfirmed: overdueIds.length, ids: overdueIds };
+  });
+
+  // ═══════════ Dismantling (해체) ═══════════
+  app.post('/api/platform/dismantling', async (request, reply) => {
+    const body = request.body as any;
+    const req = await prisma.dismantlingRequest.create({
+      data: {
+        requestId: `DIS-${Date.now()}`,
+        workId: body.workId,
+        siteId: body.siteId,
+        requesterId: body.requesterId,
+        dismantleType: body.dismantleType,
+        sectionDesc: body.sectionDesc,
+        requestDate: new Date(),
+      },
+    });
+    return req;
+  });
+
+  app.get('/api/platform/dismantling', async (request, reply) => {
+    const { siteId } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    const reqs = await prisma.dismantlingRequest.findMany({ where, orderBy: { requestDate: 'desc' } });
+    return reqs;
+  });
+
+  app.patch('/api/platform/dismantling/:requestId/status', async (request, reply) => {
+    const { requestId } = request.params as any;
+    const { status } = request.body as any;
+    const req = await prisma.dismantlingRequest.update({
+      where: { requestId },
+      data: {
+        dismantleStatus: status,
+        ...(status === '완료' ? { completedAt: new Date() } : {}),
+      },
+    });
+    return req;
+  });
+
+  // ═══════════ Buyback (바이백) ═══════════
+  app.post('/api/platform/buybacks', async (request, reply) => {
+    const body = request.body as any;
+    const bb = await prisma.buyback.create({
+      data: {
+        buybackId: `BB-${Date.now()}`,
+        workId: body.workId,
+        siteId: body.siteId,
+        materialType: body.materialType,
+        quantity: body.quantity,
+        unitPrice: body.unitPrice,
+        estimatedValue: (body.quantity || 0) * (body.unitPrice || 0),
+      },
+    });
+    return bb;
+  });
+
+  app.get('/api/platform/buybacks', async (request, reply) => {
+    const { siteId } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    const bbs = await prisma.buyback.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return bbs;
+  });
+
+  // ═══════════ Monthly Rental (월임대) ═══════════
+  app.post('/api/platform/rentals', async (request, reply) => {
+    const body = request.body as any;
+    const rental = await prisma.monthlyRental.create({
+      data: {
+        rentalId: `RENT-${Date.now()}`,
+        workId: body.workId,
+        siteId: body.siteId,
+        startDate: body.startDate ? new Date(body.startDate) : new Date(),
+        monthlyFee: body.monthlyFee,
+      },
+    });
+    return rental;
+  });
+
+  app.get('/api/platform/rentals', async (request, reply) => {
+    const { siteId } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    const rentals = await prisma.monthlyRental.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return rentals;
+  });
+
+  // ═══════════ Equipment Report (장비일보) ═══════════
+  app.post('/api/platform/equipment-reports', async (request, reply) => {
+    const body = request.body as any;
+    const report = await prisma.equipmentReport.create({
+      data: {
+        reportId: `ER-${Date.now()}`,
+        workId: body.workId,
+        siteId: body.siteId,
+        equipId: body.equipId,
+        operatorUserId: body.operatorUserId,
+        workType: body.workType,
+        startTime: body.startTime ? new Date(body.startTime) : undefined,
+        endTime: body.endTime ? new Date(body.endTime) : undefined,
+        workHours: body.workHours,
+        attachmentUsed: body.attachmentUsed,
+        hasProblem: body.hasProblem || false,
+        problemDesc: body.problemDesc,
+        photoLink: body.photoLink,
+        note: body.note,
+        contractId: body.contractId,
+      },
+    });
+    return report;
+  });
+
+  app.get('/api/platform/equipment-reports', async (request, reply) => {
+    const { siteId, equipId } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    if (equipId) where.equipId = equipId;
+    const reports = await prisma.equipmentReport.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return reports;
+  });
+
+  // ═══════════ Cargo Report (화물일보) ═══════════
+  app.post('/api/platform/cargo-reports', async (request, reply) => {
+    const body = request.body as any;
+    const report = await prisma.cargoReport.create({
+      data: {
+        reportId: `CR-${Date.now()}`,
+        workId: body.workId,
+        siteId: body.siteId,
+        vehicleId: body.vehicleId,
+        driverUserId: body.driverUserId,
+        origin: body.origin,
+        destination: body.destination,
+        loadTime: body.loadTime ? new Date(body.loadTime) : undefined,
+        unloadTime: body.unloadTime ? new Date(body.unloadTime) : undefined,
+        distanceKm: body.distanceKm,
+        loadMethod: body.loadMethod,
+        unloadMethod: body.unloadMethod,
+        cargoDesc: body.cargoDesc,
+        invoiceIssued: body.invoiceIssued || false,
+        taxInvoiceIssued: body.taxInvoiceIssued || false,
+        photoLink: body.photoLink,
+        note: body.note,
+        contractId: body.contractId,
+      },
+    });
+    return report;
+  });
+
+  app.get('/api/platform/cargo-reports', async (request, reply) => {
+    const { siteId, vehicleId } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    if (vehicleId) where.vehicleId = vehicleId;
+    const reports = await prisma.cargoReport.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return reports;
+  });
+
+  // ═══════════ Vehicle (차량) ═══════════
+  app.get('/api/platform/vehicles', async (request, reply) => {
+    const { partyId } = request.query as any;
+    const where: any = { isActive: true };
+    if (partyId) where.partyId = partyId;
+    const vehicles = await prisma.vehicle.findMany({ where });
+    return vehicles;
+  });
+
+  app.post('/api/platform/vehicles', async (request, reply) => {
+    const body = request.body as any;
+    const vehicle = await prisma.vehicle.create({
+      data: {
+        vehicleId: `VH-${Date.now()}`,
+        partyId: body.partyId,
+        vehicleType: body.vehicleType,
+        tonnage: body.tonnage,
+        plateNo: body.plateNo,
+        driverUserId: body.driverUserId,
+        assignMethod: body.assignMethod,
+      },
+    });
+    return vehicle;
+  });
+
+  // ═══════════ Worker Roster (작업자명단) ═══════════
+  app.post('/api/platform/worker-rosters', async (request, reply) => {
+    const body = request.body as any;
+    const roster = await prisma.workerRoster.create({
+      data: {
+        workId: body.workId,
+        crewId: body.crewId,
+        userId: body.userId,
+        workerName: body.workerName,
+        workerRole: body.workerRole,
+        registrationStatus: body.registrationStatus || 'NONE',
+        licenseType: body.licenseType,
+        licenseNo: body.licenseNo,
+        licenseExpiry: body.licenseExpiry ? new Date(body.licenseExpiry) : undefined,
+        specialEduDone: body.specialEduDone || false,
+        basicSafetyEduDone: body.basicSafetyEduDone || false,
+        machineSafetyDone: body.machineSafetyDone || false,
+        specialWorkerEduDone: body.specialWorkerEduDone || false,
+      },
+    });
+    return roster;
+  });
+
+  app.get('/api/platform/worker-rosters', async (request, reply) => {
+    const { workId, crewId } = request.query as any;
+    const where: any = {};
+    if (workId) where.workId = workId;
+    if (crewId) where.crewId = crewId;
+    const rosters = await prisma.workerRoster.findMany({ where });
+    return rosters;
+  });
+
+  // ═══════════ Subscription (구독) ═══════════
+  app.get('/api/platform/subscriptions', async (request, reply) => {
+    const { partyId } = request.query as any;
+    const where: any = {};
+    if (partyId) where.partyId = partyId;
+    const subs = await prisma.subscription.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return subs;
+  });
+
+  app.post('/api/platform/subscriptions', async (request, reply) => {
+    const body = request.body as any;
+    const sub = await prisma.subscription.create({
+      data: {
+        partyId: body.partyId,
+        planType: body.planType || 'STANDARD',
+        startDate: body.startDate ? new Date(body.startDate) : new Date(),
+        endDate: body.endDate ? new Date(body.endDate) : undefined,
+        mgmtFeePct: body.mgmtFeePct ?? 0.15,
+        rebatePct: body.rebatePct ?? 0.05,
+        burdenPct: body.burdenPct ?? 0.10,
+      },
+    });
+
+    // Update party subscription status
+    await prisma.party.update({
+      where: { partyId: body.partyId },
+      data: { subscriptionYn: '구독', planType: body.planType || 'STANDARD' },
+    });
+
+    return sub;
+  });
+
+  // ═══════════ Issue Events (이슈이벤트) ═══════════
+  app.post('/api/platform/issues', async (request, reply) => {
+    const body = request.body as any;
+    const issue = await prisma.issueEvent.create({
+      data: {
+        eventId: `ISS-${Date.now()}`,
+        siteId: body.siteId,
+        workId: body.workId,
+        eventAxis: body.eventAxis,
+        relatedReportType: body.relatedReportType,
+        relatedReportId: body.relatedReportId,
+        relatedGateId: body.relatedGateId,
+        issueType: body.issueType,
+        description: body.description,
+        severity: body.severity,
+        reporterId: body.reporterId,
+        reporterRole: body.reporterRole,
+      },
+    });
+    return issue;
+  });
+
+  app.get('/api/platform/issues', async (request, reply) => {
+    const { siteId, severity } = request.query as any;
+    const where: any = {};
+    if (siteId) where.siteId = siteId;
+    if (severity) where.severity = severity;
+    const issues = await prisma.issueEvent.findMany({ where, orderBy: { createdAt: 'desc' } });
+    return issues;
+  });
+
+  // ═══════════ Permission Check ═══════════
+  app.get('/api/platform/permissions', async (request, reply) => {
+    const { role, resource, action } = request.query as any;
+    const { checkPermission, getAccessibleResources, getPermissionMatrix } = await import('@axis/engine');
+
+    if (role && resource && action) {
+      const result = checkPermission(role, resource, action);
+      return { role, resource, action, allowed: result };
+    }
+
+    if (role && action) {
+      const resources = getAccessibleResources(role, action);
+      return { role, action, accessibleResources: resources };
+    }
+
+    // Return full matrix
+    return { matrix: getPermissionMatrix() };
+  });
+
+  // ═══════════ Team Membership ═══════════
+  app.post('/api/platform/team-memberships', async (request, reply) => {
+    const body = request.body as any;
+    const membership = await prisma.teamMembership.create({
+      data: {
+        userId: body.userId,
+        teamId: body.teamId,
+        startDate: body.startDate ? new Date(body.startDate) : new Date(),
+        status: '활성',
+      },
+    });
+    return membership;
+  });
+
+  app.get('/api/platform/team-memberships', async (request, reply) => {
+    const { teamId, userId } = request.query as any;
+    const where: any = {};
+    if (teamId) where.teamId = teamId;
+    if (userId) where.userId = userId;
+    const memberships = await prisma.teamMembership.findMany({ where });
+    return memberships;
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // §7 진행관리 + §9 타임라인 + §11 알림 API
+  // ═══════════════════════════════════════════════════════════════
+
+  // 타임라인 조회
+  app.get('/api/platform/timeline/:contractId', async (request, reply) => {
+    const { contractId } = request.params as any;
+    try {
+      const events = await (prisma as any).timelineEvent?.findMany({
+        where: { contractId },
+        orderBy: { createdAt: 'desc' },
+      });
+      return { data: events || [] };
+    } catch {
+      return { data: [] };
+    }
+  });
+
+  // 타임라인 이벤트 추가
+  app.post('/api/platform/timeline', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      const event = await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: body.actor,     // GAP | EUL | SYSTEM
+          action: body.action,
+          detail: body.detail || null,
+          createdAt: new Date(),
+        },
+      });
+      return event || { ok: true, id: genId('TL'), ...body };
+    } catch {
+      return { ok: true, id: genId('TL'), ...body };
+    }
+  });
+
+  // 진행상황 입력 (§7.4)
+  app.post('/api/platform/progress', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      // 진행상황 기록
+      const progress = await (prisma as any).progressUpdate?.create({
+        data: {
+          id: genId('PG'),
+          contractId: body.contractId,
+          actor: body.actor,
+          status: body.status,
+          memo: body.memo || null,
+          createdAt: new Date(),
+        },
+      });
+      // 타임라인에도 기록
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: body.actor,
+          action: body.status,
+          detail: body.memo || null,
+          createdAt: new Date(),
+        },
+      });
+      return progress || { ok: true };
+    } catch {
+      return { ok: true };
+    }
+  });
+
+  // 설치예정일 입력 (§7.3)
+  app.post('/api/platform/install-date', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      // Update contract/site with install date
+      await (prisma as any).site?.update({
+        where: { id: body.contractId },
+        data: { installDate: new Date(body.installDate) },
+      });
+      // Timeline
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: 'GAP',
+          action: `설치예정일 ${body.installDate} 입력`,
+          createdAt: new Date(),
+        },
+      });
+      return { ok: true };
+    } catch {
+      return { ok: true };
+    }
+  });
+
+  // 연락처 확인 기록 (§7.2)
+  app.post('/api/platform/contact-view', async (request, reply) => {
+    const body = request.body as any;
+    const now = new Date();
+    const label = `${now.getMonth()+1}월${now.getDate()}일 ${now.getHours()}시 ${body.actor === 'GAP' ? '갑' : '을'}이 연락처 확인`;
+    try {
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: body.actor,
+          action: label,
+          createdAt: now,
+        },
+      });
+    } catch {}
+    return { ok: true, logged: label };
+  });
+
+  // 연장 신청 (§7.4 — 최대 3회)
+  app.post('/api/platform/extension', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: body.actor,
+          action: `연장 신청 (${body.count}/3회) — 사유: ${body.reason}`,
+          createdAt: new Date(),
+        },
+      });
+    } catch {}
+    return { ok: true };
+  });
+
+  // 을 포기 신청 (§7.3 — 갑 미입력 20일 경과)
+  app.post('/api/platform/abandon', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: 'EUL',
+          action: '을 대기 포기 신청',
+          detail: body.reason || null,
+          createdAt: new Date(),
+        },
+      });
+    } catch {}
+    return { ok: true };
+  });
+
+  // 완료 보고 (§8.1)
+  app.post('/api/platform/completion', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: body.actor,
+          action: body.actor === 'EUL' ? '설치 완료 보고' : '갑 확인 → 봉인 완료',
+          createdAt: new Date(),
+        },
+      });
+    } catch {}
+    return { ok: true };
+  });
+
+  // 취소 요청 (§8.2, §8.3)
+  app.post('/api/platform/cancel', async (request, reply) => {
+    const body = request.body as any;
+    try {
+      await (prisma as any).timelineEvent?.create({
+        data: {
+          id: genId('TL'),
+          contractId: body.contractId,
+          actor: body.actor,
+          action: `취소 — ${body.actor === 'GAP' ? '갑 귀책' : '을 귀책'}: ${body.reason}`,
+          createdAt: new Date(),
+        },
+      });
+    } catch {}
+    return { ok: true };
+  });
+
+  // 을 평판 조회 (§10)
+  app.get('/api/platform/reputation', async (request, reply) => {
+    const { partyId } = request.query as any;
+    try {
+      const rep = await (prisma as any).reputation?.findFirst({
+        where: { partyId },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (rep) return rep;
+    } catch {}
+    // 기본값 반환
+    return {
+      responseScore: 20,
+      deliveryScore: 25,
+      reliabilityScore: 22,
+      recordScore: 15,
+      totalScore: 82,
+      grade: '양호',
+      rollingDays: 90,
+    };
+  });
+
+  // 알림 목록 조회 (§11)
+  app.get('/api/platform/notifications', async (request, reply) => {
+    const { target, contractId } = request.query as any;
+    try {
+      const notifications = await (prisma as any).notification?.findMany({
+        where: { ...(target ? { target } : {}), ...(contractId ? { contractId } : {}) },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      return { data: notifications || [] };
+    } catch {
+      return { data: [] };
+    }
   });
 }

@@ -18,6 +18,9 @@
     "nodemailer": "^8.0.3",
     "uuid": "^13.0.0"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^25.5.0",

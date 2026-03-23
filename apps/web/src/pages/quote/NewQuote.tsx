@@ -1,21 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuoteStore, type PanelType, type FloorType, type Region } from '../../store/quoteStore';
+import { useQuoteStore, type PanelType, type FloorType, type Region, type InstallTimeline, type Urgency } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
 import api from '../../lib/api';
 
 const STEPS = [
   { id: 1, label: '현장위치', icon: '📍' },
-  { id: 2, label: '연장(M)', icon: '📏' },
+  { id: 2, label: '연장(M)', icon: '✏️' },
   { id: 3, label: '판넬종류', icon: '🧱' },
-  { id: 4, label: '높이', icon: '📐' },
+  { id: 4, label: '높이+분진망', icon: '📐' },
   { id: 5, label: '기초조건', icon: '⛏' },
-  { id: 6, label: '현장+분진망', icon: '📋' },
+  { id: 6, label: '현장+일정', icon: '📋' },
 ];
 
 const PANEL_OPTIONS: { value: PanelType | 'auto'; label: string; desc: string; icon: string }[] = [
-  { value: 'RPP', label: 'RPP방음판', desc: '불투명 흰색 · 폴리카보네이트 · W670mm', icon: '⬜' },
+  { value: 'RPP', label: 'RPP방음판', desc: '불투명 흰색 · 강화PVC(강화폴리염화비닐) · W670mm', icon: '⬜' },
   { value: 'EGI', label: 'EGI휀스', desc: '철판도금 · 최대4M · W550mm', icon: '🔲' },
   { value: '스틸', label: '스틸방음판', desc: '갈바늄 · 가로적층 · W1980mm', icon: '⬛' },
   { value: 'auto', label: '모르겠어요', desc: '→ RPP방음판으로 처리', icon: '❓' },
@@ -40,9 +40,11 @@ function scaleFn(l: number) {
   return SCALE[SCALE.length - 1];
 }
 
+// HWP 확정표 §2.5 — 파이프타입 기준
+// 구조보강(표준형) 조건: 보조지주 Yes 또는 총높이>5m → 기본단수+1
 const XBAR: Record<string, Record<number, number>> = {
   실전형: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 7, 10: 7 },
-  표준형: { 1: 3, 2: 3, 3: 4, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 8, 10: 8 },
+  표준형: { 1: 2, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 7, 8: 8, 9: 8, 10: 8 },
 };
 
 function stType(h: number, mode: string) {
@@ -100,6 +102,8 @@ export default function NewQuote() {
         addr: store.address, region: store.region,
         lenM: store.length, panelType: store.panelType,
         heightM: store.height, floorType: store.floorType,
+        installTimeline: store.installTimeline,
+        urgency: store.urgency,
       });
       store.setEstimateId(data.id);
       navigate(`/quote/matrix/${data.id}`);
@@ -138,7 +142,7 @@ export default function NewQuote() {
           <span className="text-[10px] bg-[#f0f9ff] text-[#0369a1] px-2 py-0.5 rounded font-semibold">STEP 1</span>
           <span className="text-[15px] font-bold text-[#0f172a]">현장 조건 입력</span>
         </div>
-        <div className="text-[11px] text-[#64748b] mt-1">갑(발주처) · 6개 질문 · 약 30초</div>
+        <div className="text-[11px] text-[#64748b] mt-1">갑(발주처) · 6개 질문 + 추가 선택 · 약 30초</div>
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-6">
@@ -221,7 +225,7 @@ export default function NewQuote() {
             {step === 2 && (
               <div className="space-y-4">
                 <div className="flex gap-2 items-start">
-                  <span className="text-xl">📏</span>
+                  <span className="text-xl">✏️</span>
                   <div>
                     <h2 className="text-[15px] font-bold text-[#0f172a]">방음벽 총 길이는?</h2>
                     <p className="text-xs text-[#64748b]">대략적인 수치 OK — 규모보정계수 자동 적용</p>
@@ -360,6 +364,42 @@ export default function NewQuote() {
                     🚨 EGI {store.height}M: RPP방음판 전환 강력 권장. 구조적 안전성 검토 필수.
                   </div>
                 )}
+
+                {/* 분진망 (높이와 연관 — Q4에 통합) */}
+                <div className="border-t border-[#e5e7eb] pt-4 mt-2">
+                  <div className="flex gap-2 items-start mb-3">
+                    <span className="text-xl">◫</span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0f172a]">분진망</h2>
+                      <p className="text-xs text-[#64748b]">방음벽 상단에 분진망을 설치하나요?</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 0, label: '없음', tier: 0 },
+                      { value: 1.0, label: '1.0M', tier: 1 },
+                      { value: 1.5, label: '1.5M', tier: 1 },
+                      { value: 2.0, label: '2.0M', tier: 2 },
+                      { value: 2.5, label: '2.5M', tier: 2 },
+                      { value: 3.0, label: '3.0M', tier: 3 },
+                    ].map((opt) => (
+                      <button key={opt.label} onClick={() => store.setField('dustH', opt.value)}
+                        className={`p-3 rounded-lg border-[1.5px] text-center transition-all ${
+                          store.dustH === opt.value
+                            ? 'border-[#3b82f6] bg-[#eff6ff] text-[#1d4ed8]'
+                            : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                        }`}>
+                        <div className="font-bold">{opt.label}</div>
+                        {opt.tier > 0 && <div className="text-xs text-[#94a3b8] mt-0.5">{opt.tier}단</div>}
+                      </button>
+                    ))}
+                  </div>
+                  {store.dustH > 0 && (
+                    <div className="mt-2 bg-[#f0f9ff] border-l-[3px] border-[#38bdf8] rounded-r-lg px-3 py-2 text-xs text-[#0369a1] space-y-0.5">
+                      <div>• 분진망 {store.dustH}M → {store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}단 · 횡대 추가</div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -395,51 +435,15 @@ export default function NewQuote() {
               </div>
             )}
 
-            {/* Q6: 분진망 + 현장조건 Q-S1~S3 (한 화면) */}
+            {/* Q6: 현장조건 S1~S3 + 공사일정 S4~S5 */}
             {step === 6 && (
               <div className="space-y-6">
-                {/* 분진망 */}
+                {/* 현장 조건 S1~S3 */}
                 <div>
-                  <div className="flex gap-2 items-start mb-3">
-                    <span className="text-xl">◫</span>
-                    <div>
-                      <h2 className="text-[15px] font-bold text-[#0f172a]">분진망</h2>
-                      <p className="text-xs text-[#64748b]">방음벽 상단에 분진망을 설치하나요?</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: 0, label: '없음', tier: 0 },
-                      { value: 1.0, label: '1.0M', tier: 1 },
-                      { value: 1.5, label: '1.5M', tier: 1 },
-                      { value: 2.0, label: '2.0M', tier: 2 },
-                      { value: 2.5, label: '2.5M', tier: 2 },
-                      { value: 3.0, label: '3.0M', tier: 3 },
-                    ].map((opt) => (
-                      <button key={opt.label} onClick={() => store.setField('dustH', opt.value)}
-                        className={`p-3 rounded-lg border-[1.5px] text-center transition-all ${
-                          store.dustH === opt.value
-                            ? 'border-[#3b82f6] bg-[#eff6ff] text-[#1d4ed8]'
-                            : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
-                        }`}>
-                        <div className="font-bold">{opt.label}</div>
-                        {opt.tier > 0 && <div className="text-xs text-[#94a3b8] mt-0.5">{opt.tier}단</div>}
-                      </button>
-                    ))}
-                  </div>
-                  {store.dustH > 0 && (
-                    <div className="mt-2 bg-[#f0f9ff] border-l-[3px] border-[#38bdf8] rounded-r-lg px-3 py-2 text-xs text-[#0369a1] space-y-0.5">
-                      <div>• 분진망 {store.dustH}M → {store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}단 · 횡대 추가</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Q-S1~S3 현장 난이도 자가진단 (한 화면 3문항) */}
-                <div className="border-t border-[#e5e7eb] pt-5">
                   <div className="flex gap-2 items-start mb-1">
                     <span className="text-xl">📋</span>
                     <div>
-                      <h2 className="text-[15px] font-bold text-[#0f172a]">현장 조건 확인 <span className="text-xs font-normal text-[#94a3b8]">(선택사항 · 10초)</span></h2>
+                      <h2 className="text-[15px] font-bold text-[#0f172a]">현장 조건 <span className="text-xs font-normal text-[#94a3b8]">(선택사항)</span></h2>
                       <p className="text-xs text-[#64748b]">더 정확한 견적 안내를 위한 질문입니다</p>
                     </div>
                   </div>
@@ -531,6 +535,61 @@ export default function NewQuote() {
                       ⚠⚠ 복합 특수 조건 현장입니다. 엔진 산출값 편차가 ±40% 이상 날 수 있습니다. 을 현장 확인 견적 필수.
                     </div>
                   )}
+                </div>
+
+                {/* 공사 일정 S4~S5 */}
+                <div className="border-t border-[#e5e7eb] pt-5">
+                  <div className="flex gap-2 items-start mb-3">
+                    <span className="text-xl">📅</span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0f172a]">공사 일정 <span className="text-xs font-normal text-[#94a3b8]">(선택사항)</span></h2>
+                      <p className="text-xs text-[#64748b]">더 정확한 을 매칭을 위한 일정 정보입니다</p>
+                    </div>
+                  </div>
+
+                  {/* S4: 설치 예정 시기 */}
+                  <div className="mb-4">
+                    <div className="text-sm font-semibold text-[#334155] mb-2">S4. 설치 예정 시기가 있으신가요?</div>
+                    <div className="flex gap-2 flex-wrap">
+                      {([
+                        { value: '1개월이내' as InstallTimeline, label: '1개월 이내' },
+                        { value: '1~3개월' as InstallTimeline, label: '1~3개월' },
+                        { value: '3개월이후' as InstallTimeline, label: '3개월 이후' },
+                        { value: '미정' as InstallTimeline, label: '미정' },
+                      ]).map((opt) => (
+                        <button key={opt.value} onClick={() => store.setField('installTimeline', opt.value)}
+                          className={`flex-1 min-w-[70px] p-2.5 rounded-lg border-[1.5px] text-center transition-all ${
+                            store.installTimeline === opt.value
+                              ? 'border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]'
+                              : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                          }`}>
+                          <div className="font-bold text-sm">{opt.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* S5: 견적 긴급도 */}
+                  <div>
+                    <div className="text-sm font-semibold text-[#334155] mb-2">S5. 견적 긴급도</div>
+                    <div className="flex gap-2">
+                      {([
+                        { value: '긴급' as Urgency, label: '긴급', desc: '빠른 시공 필요' },
+                        { value: '일반' as Urgency, label: '일반', desc: '' },
+                        { value: '여유있음' as Urgency, label: '여유 있음', desc: '' },
+                      ]).map((opt) => (
+                        <button key={opt.value} onClick={() => store.setField('urgency', opt.value)}
+                          className={`flex-1 p-2.5 rounded-lg border-[1.5px] text-center transition-all ${
+                            store.urgency === opt.value
+                              ? 'border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]'
+                              : 'border-[#e5e7eb] bg-[#f9fafb] text-[#374151] hover:border-[#93c5fd]'
+                          }`}>
+                          <div className="font-bold text-sm">{opt.label}</div>
+                          {opt.desc && <div className="text-xs text-[#94a3b8]">{opt.desc}</div>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

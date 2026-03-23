@@ -440,3 +440,36 @@ export function generateComments(len: number, asset: string|null, contract: stri
 }
 
 export const DISCLAIMER = '본 견적은 과거 시공 데이터 기반 예상 범위이며 구조설계 도서가 아닙니다.';
+
+// ══════════════════════════════════════════
+// V2 확장 모듈 re-export
+// ══════════════════════════════════════════
+export { calcEquipmentCost, type EquipmentInput, type EquipmentItem, type EquipmentResult } from './equipmentCost';
+export { calcTransportV3, haversine, calcBase5tonPrice, calcDistance, VEHICLES, REGION_COORDS, type TransportInput, type TransportResult, type TransportOption, type VehicleSpec } from './transportV3';
+export { applyPriceRules, applyPriceRulesToAll, type QuoteItem as PriceQuoteItem, type PriceRule, type PriceOverride, type PriceRuleResult, type CorrectionMode } from './priceRule';
+export { calcEnvAssessment, getRegionMultiplier, getPM10Grade, type EnvInput, type EnvScore, type EnvGrade } from './envAssessment';
+export { runStructuralCheck, calcDesignWindPressure, determineStructType, calcMinEmbedDepth, selectOptimalHBeam, HBEAM_DB, type StructuralInput, type StructuralResult, type HBeamSection, type WindParams } from './structuralCheck';
+export { calcEstimateV2, calc8MatrixV2, type QuoteInputV2, type CalcOptsV2, type EstimateResultV2 } from './calcEstimateV2';
+export { calcBBResidualRate, calcBBDeductRateV2, calcBBDeduction, calcMonthlyRental, BB_PARAMS, type BBParam, type BBItem, type BBResult, type MonthlyRentalResult } from './bbDepreciation';
+export { getScaleFactor, getStructureFactor, getSpanDifficulty, calcCorrections, SCALE_BANDS, SPAN_DIFFICULTY, type ScaleBand, type SpanDifficulty, type StructureType, type CorrectionInput, type CorrectionResult } from './scaleCorrection';
+export { calcDoorEstimate, calcDoorBBDeduct, type DoorType, type DoorGrade, type DoorStructure, type DoorInput, type DoorResult } from './doorEstimate';
+export { calcSimpleEstimate, calcSimple8Matrix, findBucket, type BucketPanel, type BucketAsset, type BucketContract, type BucketTier, type BucketKey, type BucketData, type SimpleEstimateInput, type SimpleEstimateResult } from './bucketEstimate';
+export { canTransition, getNextStatuses, canGateTransition, getGateNextStatuses, getGateFlow, reconcileGateEvents, canBillingTransition, getBillingFlow, buildPlatformBridge, checkDesignChangeAutoTransition, WORK_ORDER_STATUSES, STATUS_LABEL, GATE_EVENT_STATUSES, GATE_STATUS_LABEL, BILLING_STATUSES, BILLING_STATUS_LABEL, type WorkOrderStatus, type GateEventStatus, type BillingStatus, type TransitionContext, type TransitionResult, type GateEventData, type ReconciliationItem, type ReconciliationSummary, type QuoteToPlatformInput, type QuoteToPlatformResult } from './stateMachine';
+export { checkEducationCompliance, EDUCATION_REQUIREMENTS, type EducationRequirement as EduReq, type CompletedEducation, type EducationGap, type ComplianceResult } from './educationCompliance';
+export { calculateRemiconOrder, judgeChloride, judgeTransport, getCuringMode, type RemiconOrderResult } from './remiconCalculator';
+
+// ══════════════════════════════════════════
+// Phase 3: 신규 엔진 모듈 (게이트잔량/자재전이/정산/설계변경/서류체크/권한)
+// ══════════════════════════════════════════
+export { calcGateBalance, calcAllGateBalances, reconcileGateRecords, type GateEvent, type GateBalance, type ReconResult } from './gateInventory';
+export { canMaterialTransition, getMaterialNextStatus, getAllowedEvents, calcMaterialBalance, type MaterialStatus, type MaterialEventType, type MaterialBalance } from './materialTransition';
+export { calcSettlement, calcSettlementBundle, SETTLEMENT_POLICY, type SettlementItem, type SettlementCalcResult, type SettlementMode, type BundlePeriodType, type BundleInput, type BundleResult } from './settlementEngine';
+export { calcDesignChangeStatus, findOverdueChanges, RESPONSE_DEADLINE_DAYS, type DesignChangeStatus, type DesignChangeInput, type DesignChangeResult } from './designChangeEngine';
+export { checkPartyDocs, DEFAULT_REQUIREMENTS, type PartyRole, type DocStatus, type DocRequirement, type PartyDoc, type DocCheckResult } from './partyDocChecker';
+export { checkPermission, getAccessibleResources, getPermissionMatrix, type PermRole, type PermAction } from './permissionMatrix';
+
+// ══════════════════════════════════════════
+// 을(시공사) 평판 엔진 — 확정본 v1.0
+// ══════════════════════════════════════════
+export { calcEulReputation, isExcluded, REPUTATION_WEIGHTS, PENALTY_TABLE, type ReputationInput, type ReputationResult, type ExclusionReason, type PenaltyEvent } from './eulReputation';
+export { checkPendingNotifications, getDashboardColor, GAP_NOTIFICATIONS, EUL_NOTIFICATIONS, ALL_NOTIFICATIONS, type NotifyTarget, type NotificationRule, type ContractState, type PendingNotification, type DashboardColor } from './notificationEngine';

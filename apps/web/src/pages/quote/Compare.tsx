@@ -1,18 +1,22 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuoteStore } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
+import api from '../../lib/api';
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('ko-KR');
 
-// 데모 데이터 (실제로는 API에서)
-function useDemoData(engPerM: number, length: number) {
-  return useMemo(() => [
-    { name: 'A사(주호건설)', track: '정식', perM: Math.round(engPerM * 0.97), total: Math.round(engPerM * 0.97 * length), spanMode: '3.0M', specChanged: false, dev: -3, memo: '' },
-    { name: 'B사(NS기업)', track: '간편', perM: Math.round(engPerM * 1.12), total: Math.round(engPerM * 1.12 * length), spanMode: '2.5M', specChanged: true, dev: 12, memo: '경간 좁힘' },
-    { name: 'C사(엔진승인)', track: '엔진승인', perM: engPerM, total: engPerM * length, spanMode: '3.0M', specChanged: false, dev: 0, memo: '' },
-    { name: 'D사(파주업체)', track: '간편', perM: Math.round(engPerM * 1.38), total: Math.round(engPerM * 1.38 * length), spanMode: '2.0M', specChanged: true, dev: 38, memo: '경간 2.0M' },
-  ], [engPerM, length]);
+interface CompareRow {
+  name: string;
+  track: string;
+  perM: number;
+  total: number;
+  spanMode: string;
+  specChanged: boolean;
+  dev: number;
+  memo: string;
+  reputationScore: number;   // 을 평판 총점 (0~100)
+  reputationGrade: string;   // 을 평판 등급 (우수/양호/보통/주의/경고)
 }
 
 function getStatus(dv: number) {
@@ -26,10 +30,67 @@ export default function Compare() {
   const { id } = useParams<{ id: string }>();
   const store = useQuoteStore();
   const length = store.length || 250;
-  const engPerM = 50000; // 실제로는 API에서
 
-  const rows = useDemoData(engPerM, length);
+  const [engPerM, setEngPerM] = useState(0);
+  const [rows, setRows] = useState<CompareRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+
+    Promise.all([
+      api.get(`/api/estimates/${id}/responses`),
+      api.post(`/api/estimates/${id}/compare`),
+    ])
+      .then(([responsesRes, compareRes]) => {
+        const compare = compareRes.data;
+        // 엔진 기준 M당 단가 — compare 결과 또는 estimate의 engine result에서
+        const basePerM: number = compare.enginePerM ?? compare.baselinePerM ?? 0;
+        setEngPerM(basePerM);
+
+        const responses = responsesRes.data?.items || responsesRes.data?.data || responsesRes.data || [];
+        const compareRows = compare.rows || compare.comparisons || [];
+
+        // compare API가 rows를 제공하면 사용, 아니면 responses에서 구성
+        if (compareRows.length > 0) {
+          setRows(compareRows.map((r: any) => ({
+            name: r.name || r.companyName || '-',
+            track: r.track || r.submitType || '-',
+            perM: r.perM || r.pricePerM || 0,
+            total: r.total || r.totalPrice || 0,
+            spanMode: r.spanMode || r.span || '3.0M',
+            specChanged: r.specChanged ?? false,
+            dev: r.dev ?? r.deviation ?? (basePerM ? Math.round(((r.perM || r.pricePerM || 0) - basePerM) / basePerM * 100) : 0),
+            memo: r.memo || r.note || '',
+            reputationScore: r.reputationScore ?? r.repScore ?? 0,
+            reputationGrade: r.reputationGrade ?? r.repGrade ?? '-',
+          })));
+        } else {
+          setRows(responses.map((r: any) => {
+            const perM = r.perM || r.pricePerM || 0;
+            const dev = basePerM ? Math.round((perM - basePerM) / basePerM * 100) : 0;
+            return {
+              name: r.name || r.companyName || '-',
+              track: r.track || r.submitType || '-',
+              perM,
+              total: r.total || r.totalPrice || perM * length,
+              spanMode: r.spanMode || r.span || '3.0M',
+              specChanged: r.specChanged ?? false,
+              dev,
+              memo: r.memo || r.note || '',
+              reputationScore: r.reputationScore ?? r.repScore ?? 0,
+              reputationGrade: r.reputationGrade ?? r.repGrade ?? '-',
+            };
+          }));
+        }
+      })
+      .catch((err) => {
+        console.error('Compare data fetch failed:', err);
+      })
+      .finally(() => setLoading(false));
+  }, [id, length]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: "'Noto Sans KR',sans-serif" }}>
@@ -43,6 +104,10 @@ export default function Compare() {
         <p className="text-xs text-[#64748b] mb-4">시장대비% · BB검증 · 스펙변경 감지 (No.65,75)</p>
 
         <Stepper step={5} />
+
+        {loading && <div className="text-center py-12 text-sm text-[#64748b]">비교 데이터 로딩 중...</div>}
+
+        {!loading && rows.length === 0 && <div className="text-center py-12 text-sm text-[#64748b]">응답 데이터가 없습니다.</div>}
 
         {/* 상단 요약 */}
         <div className="grid grid-cols-4 gap-2 mb-4">
@@ -69,7 +134,7 @@ export default function Compare() {
           <table className="w-full border-collapse text-xs">
             <thead>
               <tr className="bg-[#f8fafc]">
-                {['업체', '제출방식', 'M당 단가', '총액(원)', '엔진대비', '편차바', '스펙변경', '상태', '선택'].map(h => (
+                {['업체', '제출방식', 'M당 단가', '총액(원)', '엔진대비', '편차바', '을 평판', '스펙변경', '상태', '선택'].map(h => (
                   <th key={h} className="px-2 py-2.5 border border-[#e5e7eb] font-bold text-[#334155] text-[11px] whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -100,6 +165,18 @@ export default function Compare() {
                         <div className="h-full rounded-full" style={{ width: Math.min(100, Math.abs(r.dev)) + '%', background: s.bar }} />
                       </div>
                       <div className="text-[9px] text-[#94a3b8] mt-0.5">{Math.abs(r.dev)}%</div>
+                    </td>
+                    <td className="px-2 py-2.5 border border-[#e5e7eb] text-center">
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
+                        r.reputationScore >= 90 ? 'bg-[#d1fae5] text-[#065f46]'
+                        : r.reputationScore >= 75 ? 'bg-[#dbeafe] text-[#1e40af]'
+                        : r.reputationScore >= 60 ? 'bg-[#fef3c7] text-[#92400e]'
+                        : r.reputationScore >= 40 ? 'bg-[#fed7aa] text-[#9a3412]'
+                        : r.reputationGrade !== '-' ? 'bg-[#fee2e2] text-[#991b1b]'
+                        : 'bg-[#f1f5f9] text-[#94a3b8]'
+                      }`}>
+                        {r.reputationGrade !== '-' ? `${r.reputationGrade} ${r.reputationScore}점` : '미평가'}
+                      </span>
                     </td>
                     <td className="px-2 py-2.5 border border-[#e5e7eb] text-center">
                       {r.specChanged ?
@@ -145,7 +222,8 @@ export default function Compare() {
               ))}
             </div>
             {rows[sel].memo && <div className="bg-[#f8fafc] rounded-lg p-2 text-xs text-[#334155] mb-3">메모: {rows[sel].memo}</div>}
-            <button className="w-full py-3 bg-[#059669] text-white rounded-lg font-bold hover:bg-[#047857]">이 업체로 계약 진행 → STEP 6</button>
+            <button onClick={() => window.location.href = `/platform/gap/contract/${id}?eul=${sel}`}
+              className="w-full py-3 bg-[#059669] text-white rounded-lg font-bold hover:bg-[#047857]">이 업체로 계약 진행 → STEP 6</button>
           </div>
         )}
 

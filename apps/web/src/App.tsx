@@ -28,11 +28,14 @@ import GapWorkRecords from './pages/platform/gap/GapWorkRecords';
 import GapDocuments from './pages/platform/gap/GapDocuments';
 import GapBilling from './pages/platform/gap/GapBilling';
 import GapDesignChange from './pages/platform/gap/GapDesignChange';
+import GapContractProgress from './pages/platform/gap/GapContractProgress';
 import EulHome from './pages/platform/eul/EulHome';
 import EulWorkOrders from './pages/platform/eul/EulWorkOrders';
 import EulCalls from './pages/platform/eul/EulCalls';
 import EulGate from './pages/platform/eul/EulGate';
 import EulSettlement from './pages/platform/eul/EulSettlement';
+import EulContractProgress from './pages/platform/eul/EulContractProgress';
+import EulReputation from './pages/platform/eul/EulReputation';
 import EulEquipment from './pages/platform/eul/EulEquipment';
 import EulContracts from './pages/platform/eul/EulContracts';
 import EulRemicon from './pages/platform/eul/EulRemicon';
@@ -46,6 +49,7 @@ import PlatformDash from './pages/platform/PlatformDash';
 import GPSView from './pages/platform/GPSView';
 import RiskView from './pages/platform/RiskView';
 import SealView from './pages/platform/SealView';
+import PartyDocManage from './pages/platform/PartyDocManage';
 
 function PrivateRoute({ allowedRoles }: { allowedRoles?: UserRole[] }) {
   const { token, user } = useAuthStore();
@@ -94,11 +98,14 @@ export default function App() {
         <Route path="/platform/gap/documents" element={<PlatformLayout role="갑"><GapDocuments /></PlatformLayout>} />
         <Route path="/platform/gap/billing" element={<PlatformLayout role="갑"><GapBilling /></PlatformLayout>} />
         <Route path="/platform/gap/design-change" element={<PlatformLayout role="갑"><GapDesignChange /></PlatformLayout>} />
+        <Route path="/platform/gap/contract/:id" element={<PlatformLayout role="갑"><GapContractProgress /></PlatformLayout>} />
         <Route path="/platform/eul" element={<PlatformLayout role="을"><EulHome /></PlatformLayout>} />
         <Route path="/platform/eul/work-orders" element={<PlatformLayout role="을"><EulWorkOrders /></PlatformLayout>} />
         <Route path="/platform/eul/calls" element={<PlatformLayout role="을"><EulCalls /></PlatformLayout>} />
         <Route path="/platform/eul/gate" element={<PlatformLayout role="을"><EulGate /></PlatformLayout>} />
         <Route path="/platform/eul/settlement" element={<PlatformLayout role="을"><EulSettlement /></PlatformLayout>} />
+        <Route path="/platform/eul/contract/:id" element={<PlatformLayout role="을"><EulContractProgress /></PlatformLayout>} />
+        <Route path="/platform/eul/reputation" element={<PlatformLayout role="을"><EulReputation /></PlatformLayout>} />
         <Route path="/platform/eul/equipment" element={<PlatformLayout role="을"><EulEquipment /></PlatformLayout>} />
         <Route path="/platform/eul/contracts" element={<PlatformLayout role="을"><EulContracts /></PlatformLayout>} />
         <Route path="/platform/eul/remicon" element={<PlatformLayout role="을"><EulRemicon /></PlatformLayout>} />
@@ -112,6 +119,10 @@ export default function App() {
         <Route path="/platform/gps" element={<PlatformLayout role="을"><GPSView /></PlatformLayout>} />
         <Route path="/platform/risk" element={<PlatformLayout role="을"><RiskView /></PlatformLayout>} />
         <Route path="/platform/seal" element={<PlatformLayout role="을"><SealView /></PlatformLayout>} />
+        <Route path="/platform/docs" element={<PartyDocManage />} />
+        <Route path="/platform/gap/docs" element={<PlatformLayout role="갑"><PartyDocManage /></PlatformLayout>} />
+        <Route path="/platform/eul/docs" element={<PlatformLayout role="을"><PartyDocManage /></PlatformLayout>} />
+        <Route path="/platform/byeong/docs" element={<PlatformLayout role="병"><PartyDocManage /></PlatformLayout>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

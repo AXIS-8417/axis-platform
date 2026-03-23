@@ -77,6 +77,8 @@ export default function EulHome() {
           <Link to="/platform/eul/remicon" className="px-4 py-2 rounded text-sm" style={{ border:'1px solid #334155', color:'#94A3B8' }}>🏗 레미콘</Link>
           <Link to="/quote/new" className="px-4 py-2 rounded text-sm" style={{ border:'1px solid #334155', color:'#94A3B8' }}>📐 견적엔진</Link>
           <Link to="/contractor/requests" className="px-4 py-2 rounded text-sm" style={{ border:'1px solid #334155', color:'#94A3B8' }}>📨 견적응답</Link>
+          <Link to="/platform/eul/reputation" className="px-4 py-2 rounded text-sm" style={{ border:'1px solid #334155', color:'#94A3B8' }}>⭐ 평판관리</Link>
+          <Link to="/platform/eul/settlement" className="px-4 py-2 rounded text-sm" style={{ border:'1px solid #334155', color:'#94A3B8' }}>💰 정산</Link>
         </div>
       </div>
     </div>

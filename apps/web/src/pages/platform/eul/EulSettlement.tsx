@@ -5,10 +5,7 @@ const card = { background: '#0C1520', border: '1px solid #1E293B' };
 const elevated = { background: '#111B2A', border: '1px solid #1E293B' };
 const inputStyle = { background: '#111B2A', border: '1px solid #334155', color: '#F1F5F9' };
 
-const MOCK_BILLINGS = [
-  { billingId: 'BIL-MOCK01', workId: 'WO-001', amount: 2500000, status: '\uccad\uad6c\uc0dd\uc131', siteId: 'SITE-001', createdAt: '2026-03-18' },
-  { billingId: 'BIL-MOCK02', workId: 'WO-002', amount: 1800000, status: '\uacb0\uc81c\uc644\ub8cc', siteId: 'SITE-002', createdAt: '2026-03-15', paidAt: '2026-03-17' },
-];
+// MOCK_BILLINGS removed — billings fetched from real API (fallback to empty array)
 
 const BILLING_STEPS = ['\uc2dc\uacf5\uc644\ub8cc', '\ubd09\uc778', '\uccad\uad6c\uc0dd\uc131', '\uacb0\uc81c\uc694\uccad', '\uacb0\uc81c\uc644\ub8cc', '\uc218\ub839\ud655\uc778'] as const;
 
@@ -32,11 +29,8 @@ interface BuybackRecord {
   status: '\uc0b0\uc815\uc911' | '\ud655\uc815' | '\ud68c\uc218\uc644\ub8cc';
 }
 
-const MOCK_BUYBACKS: BuybackRecord[] = [
-  { buybackId: 'BB-001', materialType: 'RPP \ud328\ub110 (1200x2400)', quantity: 40, unit: '\uc7a5', originalCost: 12000000, estimatedRefund: 7200000, usageMonths: 6, status: '\ud655\uc815' },
-  { buybackId: 'BB-002', materialType: 'CLP \ud074\ub7a8\ud504', quantity: 120, unit: '\uac1c', originalCost: 3600000, estimatedRefund: 1800000, usageMonths: 8, status: '\uc0b0\uc815\uc911' },
-  { buybackId: 'BB-003', materialType: 'SNB \ubc29\uc74c\ud328\ub110 (600x1800)', quantity: 25, unit: '\uc7a5', originalCost: 5000000, estimatedRefund: 3500000, usageMonths: 3, status: '\ud68c\uc218\uc644\ub8cc' },
-];
+// TODO: BB/rental data source should be linked to actual work order materials per site.
+// Currently uses sample material items to compute from the engine.
 
 interface MonthlyRentalRecord {
   rentalId: string;
@@ -47,11 +41,7 @@ interface MonthlyRentalRecord {
   status: '\uc784\ub300\uc911' | '\ubc18\ub0a9\uc644\ub8cc' | '\uc5f0\uccb4';
 }
 
-const MOCK_RENTALS: MonthlyRentalRecord[] = [
-  { rentalId: 'MR-001', gateInfo: 'GATE-A (\uc815\ubb38)', site: '\ud30c\uc8fc OO\uc544\ud30c\ud2b8', monthlyRental: 450000, startDate: '2026-01-15', status: '\uc784\ub300\uc911' },
-  { rentalId: 'MR-002', gateInfo: 'GATE-B (\ud6c4\ubb38)', site: '\ud30c\uc8fc OO\uc544\ud30c\ud2b8', monthlyRental: 350000, startDate: '2026-02-01', status: '\uc784\ub300\uc911' },
-  { rentalId: 'MR-003', gateInfo: 'GATE-C (\uc790\uc7ac\ubc18\uc785)', site: '\uc218\uc6d0 OO\ud604\uc7a5', monthlyRental: 500000, startDate: '2025-11-01', status: '\ubc18\ub0a9\uc644\ub8cc' },
-];
+// MOCK_RENTALS removed — rental data fetched from engine API
 
 const buybackStatusColor = (s: string) => s === '\ud68c\uc218\uc644\ub8cc' ? '#22C55E' : s === '\ud655\uc815' ? '#00D9CC' : '#F0A500';
 const rentalStatusColor = (s: string) => s === '\ubc18\ub0a9\uc644\ub8cc' ? '#22C55E' : s === '\uc5f0\uccb4' ? '#EF4444' : '#00D9CC';
@@ -61,6 +51,9 @@ export default function EulSettlement() {
   const [showCreate, setShowCreate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [buybacks, setBuybacks] = useState<BuybackRecord[]>([]);
+  const [rentals, setRentals] = useState<MonthlyRentalRecord[]>([]);
+  const [bbLoading, setBbLoading] = useState(true);
 
   // Form state
   const [formWorkId, setFormWorkId] = useState('');
@@ -71,13 +64,61 @@ export default function EulSettlement() {
 
   const loadBillings = () => {
     api.get('/api/platform/billings').then(r => setBillings(r.data?.items || r.data?.data || []))
-      .catch(() => setBillings(MOCK_BILLINGS));
+      .catch(() => setBillings([]));
+  };
+
+  // TODO: material items should come from site-specific work order data.
+  // Currently using sample items to demonstrate engine integration.
+  const loadBbAndRental = async () => {
+    setBbLoading(true);
+    try {
+      // Sample material items — replace with actual work order materials when API is available
+      const sampleItems = [
+        { materialType: 'RPP 패널 (1200x2400)', quantity: 40, unit: '장', originalCost: 12000000, usageMonths: 6 },
+        { materialType: 'CLP 클램프', quantity: 120, unit: '개', originalCost: 3600000, usageMonths: 8 },
+        { materialType: 'SNB 방음패널 (600x1800)', quantity: 25, unit: '장', originalCost: 5000000, usageMonths: 3 },
+      ];
+
+      const res = await api.post('/api/engine/bb-calc', { items: sampleItems });
+      const result = res.data;
+
+      // Map buyback results
+      const bbItems: BuybackRecord[] = (result.buybacks || result.items || []).map((item: any, idx: number) => ({
+        buybackId: item.buybackId || `BB-${String(idx + 1).padStart(3, '0')}`,
+        materialType: item.materialType || sampleItems[idx]?.materialType || '-',
+        quantity: item.quantity || sampleItems[idx]?.quantity || 0,
+        unit: item.unit || sampleItems[idx]?.unit || 'EA',
+        originalCost: item.originalCost || sampleItems[idx]?.originalCost || 0,
+        estimatedRefund: item.estimatedRefund || item.refundAmount || 0,
+        usageMonths: item.usageMonths || sampleItems[idx]?.usageMonths || 0,
+        status: item.status || '산정중',
+      }));
+      setBuybacks(bbItems);
+
+      // Map monthly rental results from the same engine response
+      const rentalItems: MonthlyRentalRecord[] = (result.rentals || result.monthlyRentals || []).map((item: any, idx: number) => ({
+        rentalId: item.rentalId || `MR-${String(idx + 1).padStart(3, '0')}`,
+        gateInfo: item.gateInfo || item.gateName || '-',
+        site: item.site || item.siteName || '-',
+        monthlyRental: item.monthlyRental || item.calcMonthlyRental || 0,
+        startDate: item.startDate || '-',
+        status: item.status || '임대중',
+      }));
+      setRentals(rentalItems);
+    } catch (err) {
+      console.error('BB/Rental engine fetch failed:', err);
+      setBuybacks([]);
+      setRentals([]);
+    } finally {
+      setBbLoading(false);
+    }
   };
 
   useEffect(() => {
     loadBillings();
+    loadBbAndRental();
     api.get('/api/platform/work-orders').then(r => setWorkOrders(r.data?.items || r.data?.data || []))
-      .catch(() => setWorkOrders([{ workId: 'WO-001', siteId: 'SITE-001' }]));
+      .catch(() => setWorkOrders([]));
   }, []);
 
   const handleCreate = async () => {
@@ -217,14 +258,20 @@ export default function EulSettlement() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_BUYBACKS.map(bb => (
+              {bbLoading && (
+                <tr><td colSpan={7} className="py-6 text-center text-xs" style={{ color: '#64748B' }}>엔진 계산 중...</td></tr>
+              )}
+              {!bbLoading && buybacks.length === 0 && (
+                <tr><td colSpan={7} className="py-6 text-center text-xs" style={{ color: '#64748B' }}>바이백 데이터가 없습니다.</td></tr>
+              )}
+              {!bbLoading && buybacks.map(bb => (
                 <tr key={bb.buybackId} style={{ borderBottom: '1px solid #1E293B10' }}>
                   <td className="py-3 px-4 font-mono" style={{ color: '#F1F5F9' }}>{bb.buybackId}</td>
                   <td className="py-3 px-4" style={{ color: '#94A3B8' }}>{bb.materialType}</td>
                   <td className="py-3 px-4 font-mono" style={{ color: '#F1F5F9' }}>{bb.quantity} {bb.unit}</td>
-                  <td className="py-3 px-4 font-mono" style={{ color: '#94A3B8' }}>{bb.originalCost.toLocaleString()}\uc6d0</td>
-                  <td className="py-3 px-4 font-mono font-bold" style={{ color: '#22C55E' }}>{bb.estimatedRefund.toLocaleString()}\uc6d0</td>
-                  <td className="py-3 px-4 font-mono" style={{ color: '#64748B' }}>{bb.usageMonths}\uac1c\uc6d4</td>
+                  <td className="py-3 px-4 font-mono" style={{ color: '#94A3B8' }}>{bb.originalCost.toLocaleString()}원</td>
+                  <td className="py-3 px-4 font-mono font-bold" style={{ color: '#22C55E' }}>{bb.estimatedRefund.toLocaleString()}원</td>
+                  <td className="py-3 px-4 font-mono" style={{ color: '#64748B' }}>{bb.usageMonths}개월</td>
                   <td className="py-3 px-4">
                     <span className="px-2 py-0.5 rounded font-bold" style={{ background: buybackStatusColor(bb.status) + '20', color: buybackStatusColor(bb.status) }}>
                       {bb.status}
@@ -245,7 +292,9 @@ export default function EulSettlement() {
         </div>
 
         <div className="space-y-3">
-          {MOCK_RENTALS.map(r => {
+          {bbLoading && <div className="text-center py-8 text-xs" style={{ color: '#64748B' }}>엔진 계산 중...</div>}
+          {!bbLoading && rentals.length === 0 && <div className="text-center py-8 text-xs" style={{ color: '#64748B' }}>월임대 데이터가 없습니다.</div>}
+          {!bbLoading && rentals.map(r => {
             const sColor = rentalStatusColor(r.status);
             return (
               <div key={r.rentalId} style={card} className="rounded-lg p-5 flex items-center justify-between">
@@ -255,7 +304,7 @@ export default function EulSettlement() {
                     {r.gateInfo} | {r.site}
                   </div>
                   <div className="text-xs mt-0.5" style={{ color: '#475569' }}>
-                    \uc2dc\uc791\uc77c: {r.startDate} | \uc6d4\uc784\ub300\ub8cc: <span className="font-bold" style={{ color: '#00D9CC' }}>{r.monthlyRental.toLocaleString()}\uc6d0</span>
+                    시작일: {r.startDate} | 월임대료: <span className="font-bold" style={{ color: '#00D9CC' }}>{r.monthlyRental.toLocaleString()}원</span>
                   </div>
                 </div>
                 <span className="text-xs px-3 py-1 rounded font-bold"

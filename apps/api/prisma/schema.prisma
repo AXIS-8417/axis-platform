@@ -9,17 +9,17 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  password    String
-  role        Role
-  companyName String
-  region      String?
-  createdAt   DateTime @default(now())
-  requests    EstimateRequest[]
-  responses   ContractorResponse[]
-  quoteRecords  QuoteRecord[]
-  mergedQuotes  MergedQuote[]
+  id           String               @id @default(uuid())
+  email        String               @unique
+  password     String
+  role         Role
+  companyName  String
+  region       String?
+  createdAt    DateTime             @default(now())
+  requests     EstimateRequest[]
+  responses    ContractorResponse[]
+  quoteRecords QuoteRecord[]
+  mergedQuotes MergedQuote[]
 }
 
 enum Role {
@@ -33,12 +33,12 @@ model EstimateRequest {
   createdAt DateTime @default(now())
   status    String   @default("DRAFT")
 
-  addr       String?
-  region     String
-  lenM       Float
-  panelType  String
-  heightM    Float
-  floorType  String
+  addr      String?
+  region    String
+  lenM      Float
+  panelType String
+  heightM   Float
+  floorType String
 
   gateType   String  @default("없음")
   gateGrade  String  @default("신재")
@@ -51,8 +51,8 @@ model EstimateRequest {
   bbMonths         Int     @default(0)
   disclosureLevel  String  @default("L2")
 
-  clientId  String
-  client    User    @relation(fields: [clientId], references: [id])
+  clientId String
+  client   User   @relation(fields: [clientId], references: [id])
 
   engineResults EngineResult[]
   responses     ContractorResponse[]
@@ -60,79 +60,79 @@ model EstimateRequest {
 }
 
 model EngineResult {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   requestId    String
   request      EstimateRequest @relation(fields: [requestId], references: [id])
   designMode   String
   assetType    String
   contractType String
-  bbMonths     Int      @default(0)
+  bbMonths     Int             @default(0)
   matPerM      Int
   labPerM      Int
   matTotal     Int
   labTotal     Int
   eqpTotal     Int
-  gateTotal    Int      @default(0)
+  gateTotal    Int             @default(0)
   transTotal   Int
   subtotal     Int
-  bbRate       Float    @default(0)
-  bbRefund     Int      @default(0)
+  bbRate       Float           @default(0)
+  bbRefund     Int             @default(0)
   total        Int
   rounded      Int
   totalPerM    Int
   minVal       Int
   maxVal       Int
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
 }
 
 model ContractorResponse {
-  id            String   @id @default(uuid())
-  requestId     String
-  request       EstimateRequest @relation(fields: [requestId], references: [id])
-  contractorId  String
-  contractor    User     @relation(fields: [contractorId], references: [id])
-  responseLayer Int
-  submittedPerM Int?
-  workDays      Int?
-  memo          String?
-  deviationPct  Float?
-  specChanged   Boolean  @default(false)
-  status        String   @default("DRAFT")
-  submittedAt   DateTime?
-  createdAt     DateTime @default(now())
+  id             String          @id @default(uuid())
+  requestId      String
+  request        EstimateRequest @relation(fields: [requestId], references: [id])
+  contractorId   String
+  contractor     User            @relation(fields: [contractorId], references: [id])
+  responseLayer  Int
+  submittedPerM  Int?
+  workDays       Int?
+  memo           String?
+  deviationPct   Float?
+  specChanged    Boolean         @default(false)
+  status         String          @default("DRAFT")
+  submittedAt    DateTime?
+  createdAt      DateTime        @default(now())
   specChangeLogs SpecChangeLog[]
 }
 
 model SpecChangeLog {
-  id             String   @id @default(uuid())
+  id             String             @id @default(uuid())
   responseId     String
   response       ContractorResponse @relation(fields: [responseId], references: [id])
   fieldName      String
   engineValue    String
   submittedValue String
   impactAmount   Int?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime           @default(now())
 }
 
 model ComparisonResult {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   requestId     String
   request       EstimateRequest @relation(fields: [requestId], references: [id])
-  responseId    String   @unique
+  responseId    String          @unique
   enginePerM    Int
   submittedPerM Int
   deviationPct  Float
-  bbCheckFlag   String   @default("NORMAL")
-  specChanged   Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  bbCheckFlag   String          @default("NORMAL")
+  specChanged   Boolean         @default(false)
+  createdAt     DateTime        @default(now())
 }
 
 model PriceTrend {
-  panelType  String   @id
-  trend      String
-  changePct  Float
-  updatedAt  DateTime @default(now())
-  source     String   @default("MANUAL")
+  panelType String   @id
+  trend     String
+  changePct Float
+  updatedAt DateTime @default(now())
+  source    String   @default("MANUAL")
 }
 
 // ══════════════════════════════════════════
@@ -164,23 +164,23 @@ model QuoteRecord {
 }
 
 model QuoteSend {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   quoteId   String
   quote     QuoteRecord @relation(fields: [quoteId], references: [id])
-  sentAt    DateTime @default(now())
+  sentAt    DateTime    @default(now())
   channel   String
   recipient String?
   linkUrl   String?
 }
 
 model MergedQuote {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  createdAt   DateTime @default(now())
-  sourceIds   String[]
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  sourceIds    String[]
   mergedResult Json
-  expiresAt   DateTime
+  expiresAt    DateTime
 }
 
 // ══════════════════════════════════════════
@@ -213,35 +213,39 @@ model SystemConfig {
 
 // 03_주체목록
 model Party {
-  partyId     String   @id
-  partyRole   String
-  companyName String
-  repName     String?
-  phone       String?
-  bizNumber   String?
-  planType    String   @default("NONE")
-  status      String   @default("활성")
-  createdAt   DateTime @default(now())
+  partyId        String   @id
+  partyRole      String
+  companyName    String
+  repName        String?
+  phone          String?
+  bizNumber      String?
+  planType       String   @default("NONE")
+  status         String   @default("활성")
+  badge          String? // 배지 (표준기록 활성 등)
+  roleType       String? // 역할유형
+  docRequired    Boolean  @default(false) // 서류관리대상여부
+  subscriptionYn String   @default("미구독") // 구독여부
+  createdAt      DateTime @default(now())
 
   @@map("party")
 }
 
 // 04_사용자목록
 model PlatformUser {
-  userId           String    @id
-  partyId          String
-  name             String
-  role             String?
-  phone            String?
-  isActive         Boolean   @default(true)
-  workerType       String?
-  taxType          String?
-  cumulativeDays   Int       @default(0)
-  consecutiveDays  Int       @default(0)
-  lastDeployDate   DateTime?
-  safetyEduDate    DateTime?
-  safetyEduExpiry  DateTime?
-  createdAt        DateTime  @default(now())
+  userId          String    @id
+  partyId         String
+  name            String
+  role            String?
+  phone           String?
+  isActive        Boolean   @default(true)
+  workerType      String?
+  taxType         String?
+  cumulativeDays  Int       @default(0)
+  consecutiveDays Int       @default(0)
+  lastDeployDate  DateTime?
+  safetyEduDate   DateTime?
+  safetyEduExpiry DateTime?
+  createdAt       DateTime  @default(now())
 
   @@map("platform_user")
 }
@@ -316,123 +320,137 @@ model Equipment {
 
 // 14_작業指示
 model WorkOrder {
-  workId                String    @id
-  siteId                String?
-  contractId            String?
-  orderDatetime         DateTime?
-  orderPartyId          String?
-  orderUserId           String?
-  workType              String?
-  contractType          String?
-  assignMethod          String?
-  panelType             String?
-  frameType             String?
-  spanM                 Float?
-  postRatio             String?
-  subPostRatio          String?
-  foundationType        String?
-  embedDepthM           Float?
-  postAngle             String?
-  crossbarCount         Int?
-  referencePoint        String?
-  workDirection         String?
-  workLengthM           Float?
-  basicEquipNeeded      Boolean?
-  specialEquipCond      String?
-  attachmentRequest     String?
-  payMethod             String?
-  note                  String?
-  callId                String?
-  currentStatus         String    @default("지시생성")
-  autoNote              String?
-  paymentMethod         String?
+  workId                 String    @id
+  siteId                 String?
+  contractId             String?
+  orderDatetime          DateTime?
+  orderPartyId           String?
+  orderUserId            String?
+  workType               String?
+  contractType           String?
+  assignMethod           String?
+  panelType              String?
+  frameType              String?
+  spanM                  Float?
+  postRatio              String?
+  subPostRatio           String?
+  foundationType         String?
+  embedDepthM            Float?
+  postAngle              String?
+  crossbarCount          Int?
+  referencePoint         String?
+  workDirection          String?
+  workLengthM            Float?
+  basicEquipNeeded       Boolean?
+  specialEquipCond       String?
+  attachmentRequest      String?
+  payMethod              String?
+  note                   String?
+  callId                 String?
+  currentStatus          String    @default("지시생성")
+  autoNote               String?
+  paymentMethod          String?
   monthlyConvertPossible Boolean?
-  laborContractId       String?
-  educationStatus       String?
-  supervisorId          String?
-  guiderId              String?
-  preSurveyDone         Boolean?
-  guiderSignalMethod    String?
-  augerDiameterMm       Int?
-  tbmCompleted          Boolean   @default(false)
-  createdAt             DateTime  @default(now())
+  laborContractId        String?
+  educationStatus        String?
+  supervisorId           String?
+  guiderId               String?
+  preSurveyDone          Boolean?
+  guiderSignalMethod     String?
+  augerDiameterMm        Int?
+  tbmCompleted           Boolean   @default(false)
+  createdAt              DateTime  @default(now())
 
   @@map("work_order")
 }
 
 // 15_호출매칭
 model CallMatch {
-  callId        String    @id
-  workId        String?
-  callerPartyId String?
-  callerUserId  String?
-  targetCrewId  String?
-  callStatus    String    @default("호출중")
-  respondedAt   DateTime?
-  responseType  String?
-  rejectReason  String?
-  createdAt     DateTime  @default(now())
+  callId          String    @id
+  workId          String?
+  callerPartyId   String?
+  callerUserId    String?
+  targetCrewId    String?
+  callStatus      String    @default("호출중")
+  respondedAt     DateTime?
+  responseType    String?
+  rejectReason    String?
+  targetType      String? // 대상구분 (시공팀/장비/화물)
+  targetEquipId   String? // 장비ID
+  targetVehicleId String? // 차량ID
+  matchConfirmed  Boolean   @default(false) // 매칭확정
+  confirmReason   String? // 확정사유
+  outOfScope      Boolean   @default(false) // 범위외여부
+  outOfTime       Boolean   @default(false) // 시간외여부
+  laborContractId String? // 근로계약ID
+  createdAt       DateTime  @default(now())
 
   @@map("call_match")
 }
 
 // 16_상태흐름
 model StateFlowLog {
-  logId       String   @id @default(uuid())
-  targetType  String
-  targetId    String
-  fromStatus  String
-  toStatus    String
-  triggeredBy String?
-  triggerRole String?
-  note        String?
-  createdAt   DateTime @default(now())
+  logId        String   @id @default(uuid())
+  targetType   String
+  targetId     String
+  fromStatus   String
+  toStatus     String
+  triggeredBy  String?
+  triggerRole  String?
+  note         String?
+  gpsEventType String? // GPS이벤트유형 (ARRIVE/START/END/LEAVE/WAIT/SUSPEND)
+  autoJudged   Boolean  @default(false) // 자동판정여부
+  autoReject   Boolean  @default(false) // 자동후보거부여부
+  contractId   String? // CONTRACT_ID
+  gpsLat       Float?
+  gpsLng       Float?
+  createdAt    DateTime @default(now())
 
   @@map("state_flow_log")
 }
 
 // 17_시공일보
 model ConstructionReport {
-  reportId                   String    @id
-  workId                     String?
-  siteId                     String?
-  crewId                     String?
-  workType                   String?
-  workDirection              String?
-  sectionStartM              Float?
-  sectionEndM                Float?
-  frameLengthM               Float?
-  panelLengthM               Float?
-  foundationType             String?
-  embedDepthM                Float?
-  postAngle                  String?
-  span                       String?
-  postRatio                  String?
-  subPostRatio               String?
-  crossbarCount              Int?
-  extraReinforcement         Boolean?
-  reinforcementDesc          String?
-  panelType                  String?
-  panelDesc                  String?
-  gapDistanceM               Float?
-  gapReason                  String?
-  photoLink                  String?
-  weather                    String?
-  completionDatetime         DateTime?
-  confirmDeadline            DateTime?
-  finalStatus                String?
-  note                       String?
-  materialEventType          String?
-  materialStateTransition    String?
-  relatedMaterialId          String?
-  relatedMaterialQty         Float?
-  workerRegistrationStatus   String?
-  unregisteredEventId        String?
-  startRecordMethod          String?
-  endRecordMethod            String?
-  contractId                 String?
-  sealId                     String?
-  createdAt                  DateTime  @default(now())
+  reportId                 String    @id
+  workId                   String?
+  siteId                   String?
+  crewId                   String?
+  workType                 String?
+  workDirection            String?
+  sectionStartM            Float?
+  sectionEndM              Float?
+  frameLengthM             Float?
+  panelLengthM             Float?
+  foundationType           String?
+  embedDepthM              Float?
+  postAngle                String?
+  span                     String?
+  postRatio                String?
+  subPostRatio             String?
+  crossbarCount            Int?
+  extraReinforcement       Boolean?
+  reinforcementDesc        String?
+  panelType                String?
+  panelDesc                String?
+  gapDistanceM             Float?
+  gapReason                String?
+  photoLink                String?
+  weather                  String?
+  completionDatetime       DateTime?
+  confirmDeadline          DateTime?
+  finalStatus              String?
+  note                     String?
+  materialEventType        String?
+  materialStateTransition  String?
+  relatedMaterialId        String?
+  relatedMaterialQty       Float?
+  workerRegistrationStatus String?
+  unregisteredEventId      String?
+  startRecordMethod        String?
+  endRecordMethod          String?
+  contractId               String?
+  sealId                   String?
+  createdAt                DateTime  @default(now())
 
   @@map("construction_report")
 }
@@ -470,6 +488,12 @@ model InsuranceVault {
   coverageAmount Float?
   status         String?
   docUrl         String?
+  insuranceAxis  String? // 보험축 (시공/장비/화물)
+  coverageItems  String? // 보장항목
+  coverageLimit  Float? // 보장한도
+  deductible     Float? // 자기부담금
+  fileHash       String? // FILE_HASH
+  docCategory    String? // 서류구분 (보험/등록증/면허/교육확인서/사업자등록증/등록원부)
   createdAt      DateTime  @default(now())
 
   @@map("insurance_vault")
@@ -569,66 +593,79 @@ model SafetyCheck {
 
 // 50_사고기록
 model Incident {
-  incidentId   String    @id
-  siteId       String?
-  workId       String?
-  reporterId   String?
-  incidentDate DateTime?
-  incidentType String?
-  severity     String?
-  description  String?
-  injuredCount Int       @default(0)
-  deathCount   Int       @default(0)
-  actionTaken  String?
-  sealId       String?
-  createdAt    DateTime  @default(now())
+  incidentId       String    @id
+  siteId           String?
+  workId           String?
+  reporterId       String?
+  incidentDate     DateTime?
+  incidentType     String?
+  severity         String?
+  description      String?
+  injuredCount     Int       @default(0)
+  deathCount       Int       @default(0)
+  actionTaken      String?
+  sealId           String?
+  reportMethod     String? // 신고방법
+  injuredName      String? // 부상자명
+  injuredPart      String? // 부상부위
+  injuredDegree    String? // 부상정도
+  gpsLat           Float?
+  gpsLng           Float?
+  witnessName      String? // 목격자
+  called119        Boolean   @default(false)
+  hospitalTransfer Boolean   @default(false)
+  clientNotifiedAt DateTime? // 발주처 알림일시
+  ownerNotifiedAt  DateTime? // OWNER 알림일시
+  familyNotifiedAt DateTime? // 가족 알림일시
+  safetyCheckId    String? // 안전체크ID
+  createdAt        DateTime  @default(now())
 
   @@map("incident")
 }
 
 // 51_근로계약
 model LaborContract {
-  contractId         String    @id
-  contractType       String?
-  eulPartyId         String?
-  workerUserId       String?
-  workerName         String?
-  siteId             String?
-  workId             String?
-  startDate          DateTime?
-  endDate            DateTime?
-  amount             Float?
-  payCondition       String?
-  signedAt           DateTime?
-  signMethod         String?
-  signGpsLat         Float?
-  signGpsLng         Float?
-  smsVerified        Boolean?
-  pdfUrl             String?
-  status             String?
-  refusalClause      Boolean?
-  substituteClause   Boolean?
-  multiClientClause  Boolean?
-  sealId             String?
-  note               String?
-  signRoute          String?
-  guestName          String?
-  guestPhone         String?
-  guestBirth         DateTime?
-  guestAlienNo       String?
-  eulSignedAt        DateTime?
-  eulSignGps         String?
-  workerSignedAt     DateTime?
-  workerSignGps      String?
-  workerSignMethod   String?
-  proxyUserId        String?
-  proxyRole          String?
-  authMethod         String?
-  pdfDocId           String?
-  copyDelivered      Boolean?
-  copyMethod         String?
-  agencyPartyId      String?
-  createdAt          DateTime  @default(now())
+  contractId        String    @id
+  contractType      String?
+  eulPartyId        String?
+  workerUserId      String?
+  workerName        String?
+  siteId            String?
+  workId            String?
+  startDate         DateTime?
+  endDate           DateTime?
+  amount            Float?
+  payCondition      String?
+  signedAt          DateTime?
+  signMethod        String?
+  signGpsLat        Float?
+  signGpsLng        Float?
+  smsVerified       Boolean?
+  pdfUrl            String?
+  status            String?
+  refusalClause     Boolean?
+  substituteClause  Boolean?
+  multiClientClause Boolean?
+  sealId            String?
+  note              String?
+  signRoute         String?
+  guestName         String?
+  guestPhone        String?
+  guestBirth        DateTime?
+  guestAlienNo      String?
+  eulSignedAt       DateTime?
+  eulSignGps        String?
+  workerSignedAt    DateTime?
+  workerSignGps     String?
+  workerSignMethod  String?
+  proxyUserId       String?
+  proxyRole         String?
+  authMethod        String?
+  pdfDocId          String?
+  copyDelivered     Boolean?
+  copyMethod        String?
+  agencyPartyId     String?
+  createdAt         DateTime  @default(now())
 
   @@map("labor_contract")
 }
@@ -666,41 +703,41 @@ model EduAttendance {
 
 // 55_레미콘Vault
 model RemiconDelivery {
-  deliveryId       String    @id
-  siteId           String?
-  workId           String?
-  spec             String?
-  concreteType     String?
-  cementType       String?
+  deliveryId        String    @id
+  siteId            String?
+  workId            String?
+  spec              String?
+  concreteType      String?
+  cementType        String?
   designStrengthMpa Int?
-  maxAggregateMm   Int?
-  slumpMm          Int?
-  admixture        String?
-  augerDiameterMm  Int?
-  embedDepthM      Float?
-  pileCount        Int?
-  pourMethod       String?
-  kGround          Float?
-  lMethod          Float?
-  vTheoryM3        Float?
-  vOrderM3         Float?
-  truckCount       Int?
-  actualPourM3     Float?
-  deliveryDatetime DateTime?
-  supplier         String?
-  supplierBizNo    String?
-  ksCertNo         String?
-  chlorideKgm3     Float?
-  chlorideGrade    String?
-  airContentPct    Float?
-  transportMinutes Int?
-  transportGrade   String?
-  pourDayTempC     Float?
-  curingMode       String?
-  inspector        String?
-  sealId           String?
-  note             String?
-  createdAt        DateTime  @default(now())
+  maxAggregateMm    Int?
+  slumpMm           Int?
+  admixture         String?
+  augerDiameterMm   Int?
+  embedDepthM       Float?
+  pileCount         Int?
+  pourMethod        String?
+  kGround           Float?
+  lMethod           Float?
+  vTheoryM3         Float?
+  vOrderM3          Float?
+  truckCount        Int?
+  actualPourM3      Float?
+  deliveryDatetime  DateTime?
+  supplier          String?
+  supplierBizNo     String?
+  ksCertNo          String?
+  chlorideKgm3      Float?
+  chlorideGrade     String?
+  airContentPct     Float?
+  transportMinutes  Int?
+  transportGrade    String?
+  pourDayTempC      Float?
+  curingMode        String?
+  inspector         String?
+  sealId            String?
+  note              String?
+  createdAt         DateTime  @default(now())
 
   @@map("remicon_delivery")
 }
@@ -755,107 +792,130 @@ model EducationRequirement {
 
 // 사전조사 (PART 263)
 model SiteSurvey {
-  surveyId         String    @id
-  workId           String?
-  siteId           String?
-  surveyDate       DateTime?
-  surveyorId       String?
-  gasLine          String?
-  commLine         String?
-  elecLine         String?
-  waterLine        String?
-  otherLine        String?
-  authorityPresent Boolean?
-  groundType       String?
-  groundSlope      Int?
-  groundState      String?
-  waterLevel       String?
-  waterLevelAction String?
-  requiredBearing  Float?
-  actualBearing    Float?
-  reinforcement    String?
-  exitControl      String?
-  overheadLine     Boolean?
-  overheadAction   String?
-  obstruction      Boolean?
+  surveyId          String    @id
+  workId            String?
+  siteId            String?
+  surveyDate        DateTime?
+  surveyorId        String?
+  gasLine           String?
+  commLine          String?
+  elecLine          String?
+  waterLine         String?
+  otherLine         String?
+  authorityPresent  Boolean?
+  groundType        String?
+  groundSlope       Int?
+  groundState       String?
+  waterLevel        String?
+  waterLevelAction  String?
+  requiredBearing   Float?
+  actualBearing     Float?
+  reinforcement     String?
+  exitControl       String?
+  overheadLine      Boolean?
+  overheadAction    String?
+  obstruction       Boolean?
   obstructionAction String?
-  specialNotes     String?
-  sealId           String?
-  createdAt        DateTime  @default(now())
+  specialNotes      String?
+  sealId            String?
+  createdAt         DateTime  @default(now())
 
   @@map("site_survey")
 }
 
-// 게이트 마스터
+// 게이트 마스터 (G03)
 model GateMaster {
-  gateId      String   @id @default(uuid())
-  siteId      String?
-  gateName    String?
-  gateType    String?
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  gateId           String    @id
+  manufacturerId   String? // 제작사ID (FK to gate_manufacturer)
+  manufacturerName String? // 제작사명
+  firstSiteId      String? // 최초설치현장ID
+  firstInstallDate DateTime? // 최초설치일
+  gateType         String? // 게이트유형 (홀딩도어/양개도어/기타)
+  heightM          Float? // 높이(m)
+  widthM           Float? // 길이(m)
+  isSplit          Boolean   @default(false) // 분할조여부
+  splitDesc        String? // 분할설명
+  material         String? // 재질 (신재/고재)
+  yangaeStructure  String? // 양개구조 (해당/해당없음)
+  currentStatus    String    @default("사용중") // 현재상태(자동파생)
+  discardReason    String? // 폐기사유
+  note             String? // 비고
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
 
   @@map("gate_master")
 }
 
-// 을 게이트원장 (단독잠금)
+// 을 게이트원장 (G04)
 model EulGateEvent {
-  eventId     String    @id
-  gateId      String?
-  siteId      String?
-  workId      String?
-  eulPartyId  String?
-  eventType   String?
-  eventDate   DateTime?
-  quantity    Float?
-  unit        String?
-  description String?
-  sealId      String?
-  sealType    String    @default("SINGLE")
-  note        String?
-  createdAt   DateTime  @default(now())
+  eventId        String    @id
+  eventDatetime  DateTime? // 사건일시
+  siteId         String? // 현장ID
+  eventType      String? // 사건유형 (이동/직송/설치/해체/회수/보수/상태판정/폐기)
+  gateId         String? // 게이트ID
+  materialSource String? // 자재출처 (우리재고/게이트업체재고/현장직송/타현장전용)
+  quantity       Float? // 수량(조)
+  moveTarget     String? // 이동대상 (을/병/현장)
+  costNature     String? // 비용성격 (비용청구있음/비용청구없음/자재소유전환)
+  amount         Int? // 금액(원)
+  teamId         String? // 수행팀ID
+  evidenceLink   String? // 증빙링크
+  byeongEventRef String? // 병사건ID참조
+  sealType       String? // 잠금유형 (단독잠금/상호잠금/미수락잠금)
+  sealStatus     String? // 잠금상태 (작성중/잠금완료)
+  sealId         String? // 잠금ID (서버발급)
+  memo           String? // 메모
+  eventPartyId   String? // 사건주체 PARTY_ID
+  holdPartyId    String? // 보유주체 PARTY_ID
+  createdAt      DateTime  @default(now())
 
   @@map("eul_gate_event")
 }
 
-// 병 게이트원장 (상호잠금)
+// 병 게이트원장 (G05)
 model ByeongGateEvent {
-  eventId          String    @id
-  gateId           String?
-  siteId           String?
-  workId           String?
-  byeongPartyId    String?
-  eventType        String?
-  eventDate        DateTime?
-  quantity         Float?
-  unit             String?
-  description      String?
-  sealId           String?
-  sealType         String    @default("MUTUAL")
-  counterConfirmed Boolean   @default(false)
-  counterUser      String?
-  counterAt        DateTime?
-  note             String?
-  createdAt        DateTime  @default(now())
+  eventId         String    @id
+  eventDatetime   DateTime? // 사건일시
+  siteId          String? // 현장ID
+  eventType       String? // 사건유형
+  gateId          String? // 게이트ID
+  materialSource  String? // 자재출처
+  quantity        Float? // 수량(조)
+  performType     String? // 수행유형 (설치/해체/회수/보수)
+  teamId          String? // 팀ID
+  teamLeaderName  String? // 팀장명
+  workerCount     Int? // 투입인원
+  judgmentResult  String? // 판정결과 (사용가능/사용불가/수리대기)
+  unusableReason  String? // 사용불가사유
+  byeongReceived  Boolean   @default(false) // 병인수여부
+  eulPayAmount    Int? // 을지급금액(원)
+  storageLocation String? // 보관위치
+  evidenceLink    String? // 증빙링크
+  sealType        String? // 잠금유형
+  sealStatus      String? // 잠금상태
+  sealId          String? // 잠금ID
+  memo            String? // 메모
+  eventPartyId    String? // 사건주체 PARTY_ID
+  holdPartyId     String? // 보유주체 PARTY_ID
+  createdAt       DateTime  @default(now())
 
   @@map("byeong_gate_event")
 }
 
 // 게이트 정합대조
 model GateReconciliation {
-  reconId        String   @id @default(uuid())
-  siteId         String?
-  gateId         String?
-  eulEventId     String?
-  byeongEventId  String?
-  eulQty         Float?
-  byeongQty      Float?
-  diff           Float?
-  matchStatus    String?  // 일치/불일치/미매핑
-  reconDate      DateTime @default(now())
-  note           String?
-  createdAt      DateTime @default(now())
+  reconId       String   @id @default(uuid())
+  siteId        String?
+  gateId        String?
+  eulEventId    String?
+  byeongEventId String?
+  eulQty        Float?
+  byeongQty     Float?
+  diff          Float?
+  matchStatus   String? // 일치/불일치/미매핑
+  reconDate     DateTime @default(now())
+  note          String?
+  createdAt     DateTime @default(now())
 
   @@map("gate_reconciliation")
 }
@@ -874,4 +934,522 @@ model EvidencePackage {
   createdAt   DateTime @default(now())
 
   @@map("evidence_package")
+}
+
+// ══════════════════════════════════════════
+// 추가 모델 (PART B)
+// ══════════════════════════════════════════
+
+// G02_게이트 제작사
+model GateManufacturer {
+  manufacturerId String   @id
+  companyName    String
+  contactName    String?
+  phone          String?
+  note           String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@map("gate_manufacturer")
+}
+
+// 18_장비일보
+model EquipmentReport {
+  reportId       String    @id
+  workId         String?
+  siteId         String?
+  equipId        String?
+  operatorUserId String?
+  workType       String?
+  startTime      DateTime?
+  endTime        DateTime?
+  workHours      Float?
+  attachmentUsed String?
+  fuelUsed       Float?
+  hasProblem     Boolean   @default(false)
+  problemDesc    String?
+  photoLink      String?
+  sealId         String?
+  note           String?
+  contractId     String?
+  createdAt      DateTime  @default(now())
+
+  @@map("equipment_report")
+}
+
+// 19_화물일보
+model CargoReport {
+  reportId         String    @id
+  workId           String?
+  siteId           String?
+  vehicleId        String?
+  driverUserId     String?
+  origin           String?
+  destination      String?
+  loadTime         DateTime?
+  unloadTime       DateTime?
+  distanceKm       Float?
+  loadMethod       String?
+  unloadMethod     String?
+  cargoDesc        String?
+  invoiceIssued    Boolean   @default(false)
+  taxInvoiceIssued Boolean   @default(false)
+  photoLink        String?
+  sealId           String?
+  note             String?
+  contractId       String?
+  createdAt        DateTime  @default(now())
+
+  @@map("cargo_report")
+}
+
+// 20_설계변경요청
+model DesignChangeRequest {
+  changeId          String    @id
+  workId            String?
+  siteId            String?
+  requesterId       String?
+  requestDate       DateTime?
+  changeField       String? // 변경항목
+  beforeValue       String? // 변경전값
+  afterValue        String? // 변경후값
+  responseDeadline  DateTime? // 응답기한 (요청+3일)
+  autoStatus        String    @default("대기") // 수락/미수락/무응답자동확정/대기
+  responderId       String?
+  respondedAt       DateTime?
+  monthlyConvertReq Boolean   @default(false) // 월임대전환요청
+  contractId        String?
+  sealId            String?
+  note              String?
+  createdAt         DateTime  @default(now())
+
+  @@map("design_change_request")
+}
+
+// 21_이슈이벤트
+model IssueEvent {
+  eventId           String    @id
+  siteId            String?
+  workId            String?
+  eventAxis         String? // 사건축 (시공/장비/화물/게이트/복합)
+  relatedReportType String? // 관련일보유형
+  relatedReportId   String? // 관련일보ID
+  relatedGateId     String?
+  issueType         String? // 이벤트유형
+  description       String? // 내용서술
+  severity          String?
+  reporterId        String?
+  reporterRole      String?
+  resolvedAt        DateTime?
+  sealId            String?
+  createdAt         DateTime  @default(now())
+
+  @@map("issue_event")
+}
+
+// 23_정합대조
+model ReconciliationCheck {
+  checkId           String   @id @default(uuid())
+  siteId            String?
+  contractId        String?
+  contractQty       Float? // 계약수량
+  inQty             Float? // 입고합계
+  outQty            Float? // 출고합계
+  diff              Float? // 차이
+  matchStatus       String? // MATCH/MINOR_DIFF/MAJOR_DIFF
+  internalRiskScore Float? // 내부리스크누적값 (외부노출금지)
+  riskStatus        String? // 리스크상태
+  note              String?
+  createdAt         DateTime @default(now())
+
+  @@map("reconciliation_check")
+}
+
+// 27_보험연결맵
+model InsuranceLink {
+  linkId         String   @id @default(uuid())
+  insuranceAxis  String? // 보험축
+  partyId        String?
+  workId         String?
+  insuranceDocId String?
+  linkType       String? // CREW_DEFAULT/WORK_SPECIFIC
+  createdAt      DateTime @default(now())
+
+  @@map("insurance_link")
+}
+
+// 28_작업자명부
+model WorkerRoster {
+  rosterId             String    @id @default(uuid())
+  workId               String?
+  crewId               String?
+  userId               String?
+  workerName           String?
+  workerRole           String? // 작업자역할
+  registrationStatus   String? // VERIFIED/SELF_REPORTED/NONE
+  licenseType          String?
+  licenseNo            String?
+  licenseExpiry        DateTime?
+  specialEduDone       Boolean   @default(false)
+  basicSafetyEduDone   Boolean   @default(false)
+  machineSafetyDone    Boolean   @default(false)
+  specialWorkerEduDone Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+
+  @@map("worker_roster")
+}
+
+// 29_거래인증서
+model TransactionCert {
+  certId    String    @id
+  workId    String?
+  workAxis  String? // 작업축
+  issuedBy  String? // 발행주체
+  issuedAt  DateTime?
+  fileHash  String?
+  status    String    @default("CREATED") // CREATED/SENT/FAILED
+  createdAt DateTime  @default(now())
+
+  @@map("transaction_cert")
+}
+
+// 30_인증서이메일로그
+model CertEmailLog {
+  sendId         String    @id @default(uuid())
+  certId         String?
+  recipientEmail String?
+  senderPartyId  String?
+  sentAt         DateTime?
+  result         String? // SUCCESS/FAIL
+  failReason     String?
+  createdAt      DateTime  @default(now())
+
+  @@map("cert_email_log")
+}
+
+// 31_자재마스터
+model MaterialMaster {
+  materialId   String   @id
+  materialName String
+  spec         String?
+  category     String? // 판넬/파이프/H빔/부자재
+  lengthGrade  String?
+  unit         String   @default("EA")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@map("material_master")
+}
+
+// 32_창고마스터
+model WarehouseMaster {
+  warehouseId   String   @id
+  warehouseName String
+  address       String?
+  managerId     String?
+  phone         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@map("warehouse_master")
+}
+
+// 33_계약자재연결
+model ContractMaterialLink {
+  linkId     String   @id @default(uuid())
+  contractId String?
+  materialId String?
+  quantity   Float?
+  unit       String?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@map("contract_material_link")
+}
+
+// 34_자재이벤트원장
+model MaterialEvent {
+  eventId      String   @id
+  materialId   String?
+  siteId       String?
+  workId       String?
+  warehouseId  String?
+  eventType    String? // DISPATCH/INSTALL/DISMANTLE/RETURN/DISCARD
+  quantity     Float?
+  fromStatus   String? // 이전상태
+  toStatus     String? // 이후상태
+  performerId  String?
+  evidenceLink String?
+  sealId       String?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  @@map("material_event")
+}
+
+// 35_자재폐기
+model MaterialDisposal {
+  disposalId      String    @id
+  materialId      String?
+  materialEventId String?
+  reason          String?
+  quantity        Float?
+  disposalDate    DateTime?
+  evidenceLink    String?
+  sealId          String?
+  note            String?
+  createdAt       DateTime  @default(now())
+
+  @@map("material_disposal")
+}
+
+// 36_자재정합
+model MaterialReconciliation {
+  reconId     String   @id @default(uuid())
+  siteId      String?
+  materialId  String?
+  contractQty Float?
+  dispatchQty Float?
+  installQty  Float?
+  returnQty   Float?
+  discardQty  Float?
+  balance     Float?
+  matchStatus String? // MATCH/MINOR_DIFF/MAJOR_DIFF
+  reconDate   DateTime @default(now())
+  note        String?
+
+  @@map("material_reconciliation")
+}
+
+// 39_정산번들
+model SettlementBundle {
+  bundleId       String    @id
+  partyId        String?
+  periodType     String? // MONTH/PROJECT/CUSTOM
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  settlementMode String? // STANDARD/AXIS
+  itemCount      Int       @default(0)
+  totalAmount    Float?
+  bundleStatus   String    @default("OPEN") // OPEN/SEALED
+  sealId         String?
+  createdAt      DateTime  @default(now())
+
+  @@map("settlement_bundle")
+}
+
+// 40_정산게이트
+model SettlementGate {
+  settlementId     String   @id
+  workId           String?
+  siteId           String?
+  eulPartyId       String?
+  byeongPartyId    String?
+  settlementType   String? // STANDARD/AXIS
+  settlementAmount Float?
+  settlementStatus String   @default("대기")
+  bundleId         String?
+  sealId           String?
+  note             String?
+  createdAt        DateTime @default(now())
+
+  @@map("settlement_gate")
+}
+
+// 41_해체요청
+model DismantlingRequest {
+  requestId       String    @id
+  workId          String?
+  siteId          String?
+  requesterId     String?
+  dismantleType   String? // 전체/부분
+  sectionDesc     String? // 구간
+  requestDate     DateTime?
+  dismantleStatus String    @default("요청됨") // 요청됨/진행중/완료후보/완료
+  completedAt     DateTime?
+  sealId          String?
+  note            String?
+  createdAt       DateTime  @default(now())
+
+  @@map("dismantling_request")
+}
+
+// 42_바이백
+model Buyback {
+  buybackId      String    @id
+  workId         String?
+  siteId         String?
+  materialType   String? // 자재유형
+  quantity       Float?
+  unitPrice      Float?
+  estimatedValue Float?
+  buybackStatus  String    @default("예정") // 예정/진행중/완료
+  completedAt    DateTime?
+  sealId         String?
+  note           String?
+  createdAt      DateTime  @default(now())
+
+  @@map("buyback")
+}
+
+// 43_월임대
+model MonthlyRental {
+  rentalId     String    @id
+  workId       String?
+  siteId       String?
+  startDate    DateTime?
+  monthlyFee   Float?
+  rentalStatus String    @default("협의중") // 협의중/진행중/종료
+  endDate      DateTime?
+  sealId       String?
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  @@map("monthly_rental")
+}
+
+// 44_배정기록
+model AssignmentRecord {
+  assignId      String   @id @default(uuid())
+  workId        String?
+  eulPartyId    String?
+  byeongPartyId String?
+  assignType    String? // 일반/안심
+  assignedAt    DateTime @default(now())
+  note          String?
+
+  @@map("assignment_record")
+}
+
+// 45_팀멤버십
+model TeamMembership {
+  memberId  String    @id @default(uuid())
+  userId    String?
+  teamId    String?
+  startDate DateTime?
+  endDate   DateTime?
+  status    String    @default("활성") // 활성/비활성
+  createdAt DateTime  @default(now())
+
+  @@map("team_membership")
+}
+
+// 46_구독상태
+model Subscription {
+  subId      String    @id @default(uuid())
+  partyId    String?
+  planType   String    @default("NONE") // NONE/STANDARD/AXIS
+  startDate  DateTime?
+  endDate    DateTime?
+  status     String    @default("활성")
+  mgmtFeePct Float     @default(0.15) // 관리비율 15%
+  rebatePct  Float     @default(0.05) // 환급비율 5%
+  burdenPct  Float     @default(0.10) // 실부담율 10%
+  createdAt  DateTime  @default(now())
+
+  @@map("subscription")
+}
+
+// 47_문서생성이력
+model DocumentHistory {
+  documentId  String   @id @default(uuid())
+  docType     String? // 출고서/해체확정서 등
+  targetId    String?
+  generatedBy String?
+  generatedAt DateTime @default(now())
+  fileUrl     String?
+  fileHash    String?
+  sealId      String?
+  note        String?
+
+  @@map("document_history")
+}
+
+// 09_차량목록
+model Vehicle {
+  vehicleId    String    @id
+  partyId      String?
+  vehicleType  String? // 차량종류
+  tonnage      String? // 톤수
+  plateNo      String? // 차량번호
+  driverUserId String?
+  assignMethod String?
+  isActive     Boolean   @default(true)
+  insStatus    String?
+  insExpiry    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@map("vehicle")
+}
+
+// 08_장비부속
+model EquipmentAttachment {
+  attachId   String   @id @default(uuid())
+  equipId    String?
+  attachType String?
+  spec       String?
+  note       String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@map("equipment_attachment")
+}
+
+// 25_장비기본단가
+model EquipmentBasePrice {
+  priceId    String    @id @default(uuid())
+  equipId    String?
+  basePrice  Float?
+  priceStart DateTime?
+  priceEnd   DateTime?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  @@map("equipment_base_price")
+}
+
+// 54_교육수료증로그
+model EduCertificateLog {
+  certId       String    @id @default(uuid())
+  attendanceId String?
+  issuedAt     DateTime?
+  certUrl      String?
+  fileHash     String?
+  status       String    @default("ISSUED")
+  createdAt    DateTime  @default(now())
+
+  @@map("edu_certificate_log")
+}
+
+// 주체서류
+model PartyDocument {
+  docId       String    @id @default(uuid())
+  partyId     String
+  docCategory String // 사업자등록증/보험증권/등록증/면허/교육확인서/등록원부
+  docName     String?
+  fileUrl     String?
+  fileHash    String?
+  isRequired  Boolean   @default(true) // 필수 vs 선택
+  status      String    @default("미제출") // 미제출/심사중/승인/반려/만료
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  expiryDate  DateTime?
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@map("party_document")
+}
+
+// 주체서류요건 (갑/을/병별 필수서류 정의)
+model PartyDocRequirement {
+  reqId       String  @id @default(uuid())
+  partyRole   String // 갑/을/병
+  docCategory String // 서류종류
+  isRequired  Boolean @default(true)
+  description String?
+  legalBasis  String?
+  sortOrder   Int     @default(0)
+
+  @@unique([partyRole, docCategory])
+  @@map("party_doc_requirement")
 }

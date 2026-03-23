@@ -12,6 +12,20 @@ export default function EulGate() {
   const [reconciliation, setReconciliation] = useState<any>(null);
   const [expandedGate, setExpandedGate] = useState<string|null>(null);
   const [loading, setLoading] = useState(true);
+  const [counterConfirming, setCounterConfirming] = useState<string|null>(null);
+
+  const handleCounterConfirm = async (sealId: string) => {
+    setCounterConfirming(sealId);
+    try {
+      await api.patch(`/api/platform/seals/${sealId}/counter-confirm`);
+      alert('맞도장 확인 완료');
+      fetchAll();
+    } catch (e: any) {
+      alert(e?.response?.data?.error || '맞도장 확인 실패');
+    } finally {
+      setCounterConfirming(null);
+    }
+  };
 
   // 을 이벤트 등록 폼
   const [showEulForm, setShowEulForm] = useState(false);
@@ -237,7 +251,18 @@ export default function EulGate() {
                   {sealBadge(ev.sealId)}
                   {ev.counterConfirmed
                     ? <span className="text-xs" style={{ color:'#22C55E' }}>✓ 상호확인: {ev.counterUser}</span>
-                    : <span className="text-xs px-2 py-0.5 rounded" style={{ background:'#EF444420', color:'#EF4444' }}>상호확인 대기</span>
+                    : <>
+                        <span className="text-xs px-2 py-0.5 rounded" style={{ background:'#EF444420', color:'#EF4444' }}>상호확인 대기</span>
+                        {ev.sealId && ev.sealType === 'MUTUAL' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleCounterConfirm(ev.sealId); }}
+                            disabled={counterConfirming === ev.sealId}
+                            className="text-xs px-3 py-1 rounded font-bold"
+                            style={{ background: counterConfirming === ev.sealId ? '#334155' : '#F0A500', color: '#070C12', opacity: counterConfirming === ev.sealId ? 0.6 : 1 }}>
+                            {counterConfirming === ev.sealId ? '처리중...' : '맞도장 확인'}
+                          </button>
+                        )}
+                      </>
                   }
                 </div>
               </div>

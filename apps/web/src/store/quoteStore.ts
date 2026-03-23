@@ -21,6 +21,9 @@ interface SelectionFields {
   disclosureLevel: 'L1' | 'L2' | 'L3';
 }
 
+export type InstallTimeline = '1개월이내' | '1~3개월' | '3개월이후' | '미정';
+export type Urgency = '긴급' | '일반' | '여유있음';
+
 interface QuoteFields {
   address: string;
   region: Region | null;
@@ -33,6 +36,8 @@ interface QuoteFields {
   siteCurve: boolean | null;
   siteAdjacent: boolean | null;
   siteMultiHeight: boolean;
+  installTimeline: InstallTimeline | null;  // S4: 설치 예정 시기
+  urgency: Urgency | null;                  // S5: 견적 긴급도
 }
 
 interface QuoteState extends QuoteFields, DoorFields, SelectionFields {
@@ -59,6 +64,8 @@ const initialState: QuoteFields & DoorFields & SelectionFields & { currentStep: 
   siteCurve: null,
   siteAdjacent: null,
   siteMultiHeight: false,
+  installTimeline: null,
+  urgency: null,
   gateType: '없음',
   doorGrade: '신재',
   doorWidth: 3,
