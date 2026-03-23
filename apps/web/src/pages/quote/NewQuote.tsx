@@ -339,23 +339,36 @@ export default function NewQuote() {
                     );
                   })}
                 </div>
-                {store.height > 0 && (
-                  <div className="bg-[#f8fafc] rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                    {([
-                      ['구조 타입', stType(store.height, '실전형'), ''],
-                      ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],
-                      ['횡대(표준형)', (XBAR['표준형'][hk] || 3) + '단', '#7c3aed'],
-                      ['기초(실전형)', store.height <= 4 ? '1.5M' : store.height <= 6 ? '2.0M' : '2.5M', ''],
-                      ['기초(표준형)', store.height <= 2 ? '1.5M' : store.height <= 4 ? '2.0M' : store.height <= 5 ? '2.5M' : '3.0M', ''],
-                      ['구조 보정', stType(store.height, '실전형') === 'H빔식' ? '×5.55' : stType(store.height, '실전형').includes('보조') ? '×2.18' : '×1.00', '#0369a1'],
-                    ] as [string, string, string][]).map(([l, v, c]) => (
-                      <div key={l}>
-                        <div className="text-[10px] text-[#94a3b8]">{l}</div>
-                        <div className="font-semibold text-[13px]" style={{ color: c || '#334155' }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {store.height > 0 && (() => {
+                  const isHBeam = store.constructionType === 'H빔식' || (store.constructionType === '자동' && store.height >= 7);
+                  const specRows: [string, string, string][] = isHBeam
+                    ? [
+                        ['구조 타입', 'H빔식', '#dc2626'],
+                        ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],
+                        ['횡대(표준형)', (XBAR['표준형'][hk] || 3) + '단', '#7c3aed'],
+                        ['지주파이프', '없음 (H빔 대체)', '#94a3b8'],
+                        ['보조지주', '없음 (H빔 대체)', '#94a3b8'],
+                        ['H빔 기초', '양측 2본/경간', '#dc2626'],
+                      ]
+                    : [
+                        ['구조 타입', stType(store.height, '실전형'), ''],
+                        ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],
+                        ['횡대(표준형)', (XBAR['표준형'][hk] || 3) + '단', '#7c3aed'],
+                        ['기초(실전형)', store.height <= 4 ? '1.5M' : store.height <= 6 ? '2.0M' : '2.5M', ''],
+                        ['기초(표준형)', store.height <= 2 ? '1.5M' : store.height <= 4 ? '2.0M' : store.height <= 5 ? '2.5M' : '3.0M', ''],
+                        ['구조 보정', stType(store.height, '실전형').includes('보조') ? '×2.18' : '×1.00', '#0369a1'],
+                      ];
+                  return (
+                    <div className="bg-[#f8fafc] rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {specRows.map(([l, v, c]) => (
+                        <div key={l}>
+                          <div className="text-[10px] text-[#94a3b8]">{l}</div>
+                          <div className="font-semibold text-[13px]" style={{ color: c || '#334155' }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {store.panelType === 'EGI' && store.height >= 4 && store.height < 6 && (
                   <div className="bg-[#fffbeb] border-l-[3px] border-[#fbbf24] rounded-r-lg px-3 py-2 text-xs text-[#92400e]">
                     ⚠ EGI {store.height}M: 이어붙임 필수 + 횡대 1단 추가. RPP방음판 전환 권장.

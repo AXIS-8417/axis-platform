@@ -371,18 +371,21 @@ export function makeDesign(h: number, floor: string, panel: string, std: boolean
 export function calcBOM(len: number, h: number, panel: string, design: Design, dustN: number) {
   const span = design.span;
   const juju = Math.ceil(len / span) + 1;
-  // BUG-03: 지주 = 주주-1 (양끝에 지주 없음, 배치비율 무관)
-  const jiuju = juju - 1;
+  // H빔: 지주파이프=0, 보조지주=0 (VBA modStructural line 845-861)
+  const jiuju = design.isHBeam ? 0 : juju - 1;
   const hwN = design.hwangdae;
   // BUG-02: 횡대수 = (floor(len/6)+1)*단수-1
   const hwCnt = (Math.floor(len / 6) + 1) * hwN - 1;
-  // BUG-04: 자동클 = 주주+지주-1
-  const jadong = juju + jiuju - 1;
+  // H빔: 클램프는 횡대 기반 (지주 없으므로 jadong 조정)
+  const jadong = design.isHBeam ? juju - 1 : juju + jiuju - 1;
   // BUG-05: 고정클 = 자동클 × 2.54
   const gojung = Math.round(jadong * 2.54);
   const pin = hwCnt;
   const dustRolls = dustN > 0 ? Math.max(1, Math.ceil(len / 40)) : 0;
-  const gichoQty = design.found === '기초파이프' ? juju + jiuju : 0;
+  // H빔: 기초파이프 = 주주 × 2 (양쪽), 비계식: 주주+지주
+  const gichoQty = design.found === '기초파이프'
+    ? (design.isHBeam ? juju * 2 : juju + jiuju)
+    : 0;
 
   // 판넬수
   let panelQty: number;
@@ -824,9 +827,14 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   // 자재비 + BB차감 (★ v3: 파이프=규격별 단가, 클램프=고재/신재 구분)
   const cg = getPriceGrade('clamp', input.asset); // 클램프 단가 등급
+  // H빔: 주주파이프 대신 H빔, 지주파이프=0 (VBA modStructural line 845-872)
+  const hbeamPrice = design.isHBeam ? Math.round((50 * (input.h + 1.5) * (input.asset.includes('신재') ? 1200 : 800)) / 100) * 100 : 0;
   const items = [
     { name: input.panel, qty: bom.panelQty, price: getPanelPrice(input.panel, pg, input.h), bbGrade: bbPG, bbKey: input.panel },
-    { name: '주주파이프', qty: bom.juju, price: getPipePrice('주주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '주주파이프' },
+    ...(design.isHBeam
+      ? [{ name: 'H빔', qty: bom.juju, price: hbeamPrice, bbGrade: bbPiG, bbKey: '주주파이프' }]
+      : [{ name: '주주파이프', qty: bom.juju, price: getPipePrice('주주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '주주파이프' }]
+    ),
     { name: '횡대파이프', qty: bom.hwCnt, price: getPipePrice('횡대파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '횡대파이프' },
     { name: '지주파이프', qty: bom.jiuju, price: getPipePrice('지주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '지주파이프' },
     { name: '기초파이프', qty: bom.gichoQty, price: getPipePrice('기초파이프', '고재', input.h, design.gichoLength), bbGrade: '고재' as const, bbKey: '기초파이프' },
