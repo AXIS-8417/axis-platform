@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuoteStore, type PanelType, type FloorType, type Region, type InstallTimeline, type Urgency } from '../../store/quoteStore';
+import { useQuoteStore, type PanelType, type FloorType, type Region, type ConstructionType, type InstallTimeline, type Urgency } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
 import api from '../../lib/api';
 
@@ -102,6 +102,8 @@ export default function NewQuote() {
         addr: store.address, region: store.region,
         lenM: store.length, panelType: store.panelType,
         heightM: store.height, floorType: store.floorType,
+        constructionType: store.constructionType,
+        isBedrock: store.isBedrock,
         installTimeline: store.installTimeline,
         urgency: store.urgency,
       });
@@ -397,6 +399,56 @@ export default function NewQuote() {
                   {store.dustH > 0 && (
                     <div className="mt-2 bg-[#f0f9ff] border-l-[3px] border-[#38bdf8] rounded-r-lg px-3 py-2 text-xs text-[#0369a1] space-y-0.5">
                       <div>• 분진망 {store.dustH}M → {store.dustH <= 1.6 ? 1 : store.dustH <= 2.6 ? 2 : store.dustH <= 3.6 ? 3 : 4}단 · 횡대 추가</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 시공방식 선택 (H빔/비계식) */}
+                <div className="border-t border-[#e5e7eb] pt-4 mt-2">
+                  <div className="flex gap-2 items-start mb-3">
+                    <span className="text-xl">🏗</span>
+                    <div>
+                      <h2 className="text-[15px] font-bold text-[#0f172a]">시공 방식</h2>
+                      <p className="text-xs text-[#64748b]">7M 이상은 자동으로 H빔식 전환됩니다</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {([
+                      { value: '자동' as const, label: '자동 판정', desc: '높이 기준 자동' },
+                      { value: '비계식' as const, label: '비계식(파이프)', desc: '일반 구조' },
+                      { value: 'H빔식' as const, label: 'H빔식', desc: '중량 구조' },
+                    ]).map((opt) => {
+                      const autoResult = opt.value === '자동'
+                        ? (store.height >= 7 ? 'H빔식' : '비계식')
+                        : opt.value;
+                      return (
+                        <button key={opt.value}
+                          onClick={() => store.setField('constructionType', opt.value)}
+                          className={`flex-1 p-3 border-[1.5px] rounded-lg text-center transition-all ${
+                            store.constructionType === opt.value
+                              ? 'border-[#3b82f6] bg-[#eff6ff]'
+                              : 'border-[#e2e8f0] bg-white hover:border-[#93c5fd]'
+                          }`}>
+                          <div className={`font-semibold text-[13px] ${store.constructionType === opt.value ? 'text-[#1d4ed8]' : 'text-[#374151]'}`}>
+                            {opt.label}
+                          </div>
+                          <div className="text-[10px] text-[#94a3b8]">{opt.desc}</div>
+                          {opt.value === '자동' && store.height > 0 && (
+                            <div className="text-[10px] mt-1 font-medium text-[#0369a1]">→ {autoResult}</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(store.constructionType === 'H빔식' || (store.constructionType === '자동' && store.height >= 7)) && (
+                    <div className="mt-2 flex items-center gap-2 bg-[#fff7ed] border border-[#fed7aa] rounded-lg px-3 py-2">
+                      <input type="checkbox" id="bedrock"
+                        checked={store.isBedrock}
+                        onChange={(e) => store.setField('isBedrock', e.target.checked)}
+                        className="rounded" />
+                      <label htmlFor="bedrock" className="text-xs text-[#9a3412]">
+                        암반 지반 (오거 장비 + 에어컴프레셔 추가)
+                      </label>
                     </div>
                   )}
                 </div>

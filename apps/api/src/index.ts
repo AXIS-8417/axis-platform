@@ -1154,6 +1154,27 @@ app.post('/api/engine/door-calc', async (req, reply) => {
   return result;
 });
 
+// ── H빔 견적 엔진 ──────────────────────────────────────────
+app.post('/api/engine/hbeam-calc', async (req, reply) => {
+  const { calcHBeamEstimate } = await import('@axis/engine');
+  const input = req.body as any;
+  const result = calcHBeamEstimate({
+    location: input.location || '서울',
+    totalLength: parseFloat(input.totalLength) || 100,
+    panelType: input.panelType || 'RPP',
+    panelHeight: parseFloat(input.panelHeight) || 3,
+    span: parseFloat(input.span) || 3.0,
+    dustHeight: parseFloat(input.dustHeight) || 0,
+    asset: input.asset || '고재',
+    contractType: input.contractType || 'BB',
+    bbMonths: parseInt(input.bbMonths) || 6,
+    constructionType: input.constructionType || '자동',
+    Vo: parseFloat(input.Vo) || 26,
+    isBedrock: input.isBedrock === true,
+  });
+  return result;
+});
+
 // ── Scale Correction Info ────────────────────────────────────
 app.get('/api/engine/scale-info', async (req, reply) => {
   const len = parseFloat((req.query as any).len) || 100;
