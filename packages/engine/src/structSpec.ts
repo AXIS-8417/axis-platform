@@ -47,8 +47,8 @@ const IW = 0.60;        // 중요도계수 — 가시설 재현기간 1년
 const SPT_N = 15;       // 지반 SPT-N 가정값
 const PHI = 30;          // 내부마찰각 (°)
 const GAMMA = 18;        // 토질 단위중량 (kN/m³)
-const D_FOUND_PIPE = 0.0486;   // Φ48.6 파이프 직경 (m)
-const D_FOUND_HBEAM = 0.45;    // H빔 기초 D450 (m)
+const D_FOUND_PIPE = 0.3;      // 항타+지반다짐 등가직경 경험값 (VBA 확정, 파이프 순수OD 아님)
+// H빔 D_found = flangeB / 2000 (규격별 다름, calcMinEmbed에서 동적 계산)
 
 // 비계파이프 제원 (P48.6×2.3T, SGT275) — DB_단면물성 확정
 const PIPE = {
@@ -191,7 +191,10 @@ function calcHBeamStress(
   const M_post = W2 * panelH * panelH / 2
                + W1 * dustH * (panelH + dustH / 2);
   const fb_post = M_post * 1000 / beam.Z;
-  return fb_post / beam.fba;
+  let ratio = fb_post / beam.fba;
+  // ★ VBA: 8m+ 추정구간 안전계수 1.2 적용
+  if (totalH >= 8) ratio *= 1.2;
+  return ratio;
 }
 
 // ─── 전도 안전율 (기초파이프) ────────────────────────────────
@@ -267,9 +270,10 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
   let hasBracing = false;
   if (structType === '비계식') {
     hasBracing = (totalH >= 5 || Vo >= 30);
-    if (totalH >= 6 && !hasBracing) {
+    // ★ BK_05: 판넬높이 기준 (분진망 제외) — VBA 확정
+    if (input.height >= 6 && !hasBracing) {
       hasBracing = true;
-      warnings.push('H≥6m 비계식은 보조지주 필수 (구조적 불가)');
+      warnings.push('판넬H≥6m 비계식은 보조지주 필수 (BK_05, 구조적 불가)');
     }
   }
 
@@ -348,7 +352,17 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
   let embedTotal = 0;
   let Fs = 999;
   if (input.foundation === '기초파이프') {
-    const D_found = (structType === 'H빔식') ? D_FOUND_HBEAM : D_FOUND_PIPE;
+    // ★ VBA: 비계=0.3(등가직경), H빔=flangeB/2000 (규격별)
+    let D_found: number;
+    if (structType === 'H빔식') {
+      const beam = HBEAM[postSpec];
+      // flangeB 추출: 규격명에서 두번째 숫자 (H-148×100 → 100mm)
+      const bMatch = postSpec.match(/×(\d+)/);
+      const flangeB = bMatch ? parseInt(bMatch[1]) : (beam ? Math.sqrt(beam.A) : 150);
+      D_found = flangeB / 2000;  // mm → m, 플랜지폭/2
+    } else {
+      D_found = D_FOUND_PIPE;  // 0.3 (항타+지반다짐 등가직경)
+    }
     const result = calcMinEmbed(totalH, input.height, input.dustH, span, pf, PHI, D_found);
     embedDepth = result.depth;
     Fs = result.Fs;
