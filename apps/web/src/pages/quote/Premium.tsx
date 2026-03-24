@@ -248,9 +248,27 @@ export default function Premium() {
             <table className="w-full text-sm">
               <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">조건</th><th className="text-right text-[#2563eb]">실전형</th><th className="text-right text-[#d97706]">표준형</th></tr></thead>
               <tbody>
-                {[['경간',practical.design.span+'M',standard.design.span+'M'],['지주간격',practical.design.jiju,standard.design.jiju],['보조지주',practical.design.bojo,standard.design.bojo],['횡대',practical.design.hwangdae+'단',standard.design.hwangdae+'단'],['기초',practical.design.found,standard.design.found],['기초파이프',(practical.design.gichoLength??'-')+'M',(standard.design.gichoLength??'-')+'M'],['구조타입',practical.design.structType,standard.design.structType]].map(([label,p,s],i)=>(
-                  <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label as string}</td><td className="text-right font-mono">{p as string}</td><td className="text-right font-mono">{s as string}</td></tr>
-                ))}
+                {(() => {
+                  const isHBeam = practical.design.structType?.includes('H빔') || standard.design.structType?.includes('H빔');
+                  const rows: [string,string,string][] = [
+                    ['경간', practical.design.span+'M', standard.design.span+'M'],
+                    ...(!isHBeam ? [
+                      ['지주간격', practical.design.jiju, standard.design.jiju] as [string,string,string],
+                      ['보조지주', practical.design.bojo, standard.design.bojo] as [string,string,string],
+                    ] : []),
+                    ['횡대', practical.design.hwangdae+'단', standard.design.hwangdae+'단'],
+                    ['기초', practical.design.found, standard.design.found],
+                    ['기초파이프', (practical.design.gichoLength??'-')+'M', (standard.design.gichoLength??'-')+'M'],
+                    ['구조타입', practical.design.structType, standard.design.structType],
+                    ...(isHBeam ? [
+                      ['지주파이프', '없음 (H빔 대체)', '없음 (H빔 대체)'] as [string,string,string],
+                      ['보조지주', '없음 (H빔 자립)', '없음 (H빔 자립)'] as [string,string,string],
+                    ] : []),
+                  ];
+                  return rows.map(([label,p,s],i) => (
+                    <tr key={i} className="border-b border-[#e5e7eb]/30"><td className="py-2">{label}</td><td className="text-right font-mono">{p}</td><td className="text-right font-mono">{s}</td></tr>
+                  ));
+                })()}
               </tbody>
             </table>
           )}
