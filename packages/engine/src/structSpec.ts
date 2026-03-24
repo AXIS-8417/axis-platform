@@ -77,6 +77,18 @@ const HBEAM: Record<string, { Z: number; A: number; Aw: number; fba: number }> =
   'H-250×250':  { Z: 757000, A: 9218, Aw: 1998, fba: 156 },
 };
 
+// 강종 DB — 엑셀 DB_단면물성 확정
+export const STEEL_GRADES = {
+  SGT275: { Fy: 275, fba: 175, tauA: 80, use: '비계파이프 Φ48.6' },
+  SS400:  { Fy: 235, fba: 156, tauA: 94, use: 'H빔, 각관' },
+} as const;
+
+// 각관 물성 (□100×100 — NS현용 자립식, 통합데이터 미포함 → KS 계산)
+export const SQUARE_TUBE: Record<string, { Z: number; A: number; r: number; fba: number }> = {
+  '□100×100×2.0t': { Z: 25109, A: 784, r: 40.0, fba: 156 },  // SS400
+  '□100×100×2.3t': { Z: 28615, A: 899, r: 39.9, fba: 156 },  // SS400
+};
+
 // 풍력계수 — 판넬별 분기 (v76.5 구검서 확정)
 function getCf(panel: string): number {
   switch (panel) {
@@ -99,7 +111,7 @@ const HEIGHT_MAP = [
   { id: 'M01', H_min: 3, H_max: 3, system: 'EGI비계', postSpec: 'P48.6', span: 2000, tier: 3, embed: 1500 },
   { id: 'M02', H_min: 3, H_max: 4, system: '일반비계', postSpec: 'P48.6', span: 2000, tier: 3, embed: 2000 },
   { id: 'M03', H_min: 3, H_max: 4, system: 'RPP비계', postSpec: 'P48.6', span: 3000, tier: 3, embed: 2000 },
-  { id: 'M04', H_min: 5, H_max: 5, system: '자립식', postSpec: 'SQ75', span: 2000, tier: 4, embed: 0 },
+  { id: 'M04', H_min: 5, H_max: 5, system: '자립식', postSpec: '□100×100×2.3t', span: 2000, tier: 4, embed: 0 },
   { id: 'M05', H_min: 5, H_max: 6, system: 'H-빔항타', postSpec: 'H-148×100', span: 3000, tier: 4, embed: 2000 },
   { id: 'M06', H_min: 6, H_max: 6, system: 'H-빔매립', postSpec: 'H-148×100', span: 2000, tier: 5, embed: 2000 },
   { id: 'M07', H_min: 6, H_max: 7, system: 'H-빔RPP', postSpec: 'H-200×100', span: 3000, tier: 5, embed: 2500 },
