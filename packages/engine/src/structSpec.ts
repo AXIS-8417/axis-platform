@@ -60,32 +60,21 @@ const PIPE = {
   tauA: 80,            // 허용전단응력 (MPa)
 };
 
-// H빔 제원 — DB_단면물성 시트 23종 전수, Zx_원본 우선
+// H빔 물성 DB — 실제 사용하는 11종 (통합데이터 Z값 기준)
+// 자동선정은 DB_높이규격매핑(HEIGHT_MAP)이 담당, 물성 조회는 여기서
 // SS400 Fy=235MPa, fba=156MPa(가설할증), tauA=94MPa
 const HBEAM: Record<string, { Z: number; A: number; Aw: number; fba: number }> = {
-  'H-100x50':   { Z: 34400,  A: 1130, Aw: 430,  fba: 156 },
-  'H-100x100':  { Z: 77500,  A: 2104, Aw: 504,  fba: 156 },
-  'H-125x60':   { Z: 60900,  A: 1614, Aw: 654,  fba: 156 },
-  'H-125x125':  { Z: 136000, A: 2946, Aw: 696,  fba: 156 },
-  'H-150x75':   { Z: 89200,  A: 1730, Aw: 680,  fba: 156 },
-  'H-148':      { Z: 138000, A: 2580, Aw: 780,  fba: 156 },  // H-148x100x6x9 ✅구검
-  'H-150x150':  { Z: 219000, A: 3910, Aw: 910,  fba: 156 },
-  'H-175x90':   { Z: 143000, A: 2235, Aw: 795,  fba: 156 },
-  'H-175x175':  { Z: 356000, A: 4998, Aw: 1148, fba: 156 },
-  'H-200':      { Z: 184000, A: 2612, Aw: 1012, fba: 156 },  // H-200x100x5.5x8 ✅구검
-  'H-194':      { Z: 279000, A: 3756, Aw: 1056, fba: 156 },  // H-194x150x6x9 ✅구검
-  'H-200x204':  { Z: 498000, A: 7008, Aw: 2112, fba: 156 },
-  'H-200x200':  { Z: 472000, A: 6208, Aw: 1408, fba: 156 },  // ✅부천B=2
-  'H-250x125':  { Z: 356000, A: 3642, Aw: 1392, fba: 156 },
-  'H-244x175':  { Z: 512000, A: 5404, Aw: 1554, fba: 156 },
-  'H-250x250':  { Z: 757000, A: 8998, Aw: 1998, fba: 156 },
-  'H-300x150':  { Z: 557000, A: 4533, Aw: 1833, fba: 156 },
-  'H-294x200':  { Z: 836000, A: 6960, Aw: 2160, fba: 156 },
-  'H-300x300':  { Z: 1350000, A: 11700, Aw: 2700, fba: 156 },
-  'H-350x175':  { Z: 875000, A: 6146, Aw: 2296, fba: 156 },
-  'H-340x250':  { Z: 1430000, A: 9808, Aw: 2808, fba: 156 },
-  'H-350x350':  { Z: 2480000, A: 17044, Aw: 3744, fba: 156 },
-  'H-400x200':  { Z: 1310000, A: 8192, Aw: 2992, fba: 156 },
+  'H-148×100':  { Z: 138000, A: 2684, Aw: 780,  fba: 156 },
+  'H-150×150':  { Z: 219000, A: 4014, Aw: 910,  fba: 156 },
+  'H-175×90':   { Z: 143000, A: 2304, Aw: 795,  fba: 156 },
+  'H-175×175':  { Z: 356000, A: 5121, Aw: 1148, fba: 156 },
+  'H-194×150':  { Z: 279000, A: 3901, Aw: 1056, fba: 156 },
+  'H-200×100':  { Z: 184000, A: 2716, Aw: 1012, fba: 156 },
+  'H-200×200':  { Z: 472000, A: 6353, Aw: 1408, fba: 156 },
+  'H-200×204':  { Z: 498000, A: 7153, Aw: 2112, fba: 156 },
+  'H-244×175':  { Z: 512000, A: 5624, Aw: 1554, fba: 156 },
+  'H-250×125':  { Z: 356000, A: 3766, Aw: 1392, fba: 156 },
+  'H-250×250':  { Z: 757000, A: 9218, Aw: 1998, fba: 156 },
 };
 
 // 풍력계수 — 판넬별 분기 (v76.5 구검서 확정)
@@ -111,15 +100,15 @@ const HEIGHT_MAP = [
   { id: 'M02', H_min: 3, H_max: 4, system: '일반비계', postSpec: 'P48.6', span: 2000, tier: 3, embed: 2000 },
   { id: 'M03', H_min: 3, H_max: 4, system: 'RPP비계', postSpec: 'P48.6', span: 3000, tier: 3, embed: 2000 },
   { id: 'M04', H_min: 5, H_max: 5, system: '자립식', postSpec: 'SQ75', span: 2000, tier: 4, embed: 0 },
-  { id: 'M05', H_min: 5, H_max: 6, system: 'H-빔항타', postSpec: 'H-148', span: 3000, tier: 4, embed: 2000 },
-  { id: 'M06', H_min: 6, H_max: 6, system: 'H-빔매립', postSpec: 'H-148', span: 2000, tier: 5, embed: 2000 },
-  { id: 'M07', H_min: 6, H_max: 7, system: 'H-빔RPP', postSpec: 'H-200', span: 3000, tier: 5, embed: 2500 },
-  { id: 'M08', H_min: 8, H_max: 8, system: 'H-빔', postSpec: 'H-194', span: 3000, tier: 6, embed: 3000 },
-  { id: 'M09', H_min: 9, H_max: 9, system: 'H-빔', postSpec: 'H-194', span: 3000, tier: 7, embed: 3500 },
-  { id: 'M10', H_min: 10, H_max: 10, system: 'H-빔RPP', postSpec: 'H-194', span: 3000, tier: 8, embed: 4000 },
-  { id: 'M11', H_min: 11, H_max: 11, system: '자립식', postSpec: 'H-250', span: 3000, tier: 0, embed: 0 },
-  { id: 'M12', H_min: 12, H_max: 12, system: '자립식', postSpec: 'H-250', span: 3000, tier: 0, embed: 0 },
-  { id: 'M13', H_min: 14, H_max: 14, system: '특수', postSpec: 'H-250', span: 3000, tier: 0, embed: 0 },
+  { id: 'M05', H_min: 5, H_max: 6, system: 'H-빔항타', postSpec: 'H-148×100', span: 3000, tier: 4, embed: 2000 },
+  { id: 'M06', H_min: 6, H_max: 6, system: 'H-빔매립', postSpec: 'H-148×100', span: 2000, tier: 5, embed: 2000 },
+  { id: 'M07', H_min: 6, H_max: 7, system: 'H-빔RPP', postSpec: 'H-200×100', span: 3000, tier: 5, embed: 2500 },
+  { id: 'M08', H_min: 8, H_max: 8, system: 'H-빔', postSpec: 'H-194×150', span: 3000, tier: 6, embed: 3000 },
+  { id: 'M09', H_min: 9, H_max: 9, system: 'H-빔', postSpec: 'H-194×150', span: 3000, tier: 7, embed: 3500 },
+  { id: 'M10', H_min: 10, H_max: 10, system: 'H-빔RPP', postSpec: 'H-194×150', span: 3000, tier: 8, embed: 4000 },
+  { id: 'M11', H_min: 11, H_max: 11, system: '자립식', postSpec: 'H-250×125', span: 3000, tier: 0, embed: 0 },
+  { id: 'M12', H_min: 12, H_max: 12, system: '자립식', postSpec: 'H-250×125', span: 3000, tier: 0, embed: 0 },
+  { id: 'M13', H_min: 14, H_max: 14, system: '특수', postSpec: 'H-250×250', span: 3000, tier: 0, embed: 0 },
 ];
 
 function lookupPostSpec(totalH: number, structType: string): string {
@@ -128,9 +117,9 @@ function lookupPostSpec(totalH: number, structType: string): string {
     r => totalH >= r.H_min && totalH <= r.H_max && r.system.includes(keyword)
   );
   if (m) return m.postSpec;
-  if (totalH <= 6) return 'H-148';
-  if (totalH <= 8) return 'H-194';
-  return 'H-194';
+  if (totalH <= 6) return 'H-148×100';
+  if (totalH <= 8) return 'H-194×150';
+  return 'H-194×150';
 }
 
 // DB_판정룰 — v76.5 엑셀 확정
