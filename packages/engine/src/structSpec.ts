@@ -17,6 +17,7 @@ export interface StructSpecInput {
   foundation: string;   // "기초파이프" | "베이스판" | "콘크리트"
   kzr?: number;         // 지표면조도계수 (기본 0.81)
   kzt?: number;         // 지형계수 (기본 1.0)
+  constructionType?: '자동' | '비계식' | 'H빔식';  // 사용자 선택 시공방식 (기본: 자동)
 }
 
 export interface StructSpecResult {
@@ -241,15 +242,25 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
   const Vd = Vo * Kzr * Kzt * IW;
   const pf = 0.5 * RHO * Vd * Vd * Gf * Cf / 1000;  // kN/m²
 
-  // STEP 3: 구조타입
+  // STEP 3: 구조타입 — 사용자 선택 우선, '자동'이면 높이 기반
   let structType: string;
   let postSpec: string;
-  if (totalH >= 7 || (input.panel === '스틸방음판' && totalH >= 6)) {
+  const userType = input.constructionType ?? '자동';
+  if (userType === 'H빔식') {
     structType = 'H빔식';
     postSpec = lookupPostSpec(totalH, 'H빔식');
-  } else {
+  } else if (userType === '비계식') {
     structType = '비계식';
     postSpec = 'P48.6';
+  } else {
+    // 자동: 높이 기반 결정
+    if (totalH >= 7 || (input.panel === '스틸방음판' && totalH >= 6)) {
+      structType = 'H빔식';
+      postSpec = lookupPostSpec(totalH, 'H빔식');
+    } else {
+      structType = '비계식';
+      postSpec = 'P48.6';
+    }
   }
 
   // STEP 4: 보조지주 (비계식만)

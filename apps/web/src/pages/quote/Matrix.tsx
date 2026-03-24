@@ -130,6 +130,7 @@ export default function Matrix() {
           panel: panel === 'RPP' ? 'RPP방음판' : panel === 'EGI' ? 'EGI휀스' : '스틸방음판',
           height: h, dustH: store.dustH || 0, dustN: (store.dustH || 0) > 0 ? Math.ceil((store.dustH || 0) / 1.5) : 0,
           length: len, foundation: store.floorType || '기초파이프',
+          constructionType: store.constructionType || '자동',
         };
         const spec = CalcStructSpec(sInput);
         setStructSpec(spec);
