@@ -1212,6 +1212,36 @@ app.post('/api/engine/v2/matrix', async (req, reply) => {
   return { ...result, scaleInfo: { band: band.label, factor } };
 });
 
+// ── 구조형(구조참고견적) 엔진 ───────────────────────────────
+app.post('/api/engine/struct-spec', async (req, reply) => {
+  try {
+    const { CalcStructSpec, generateStructComment, generateStructBOM, calcStructLabor } = await import('@axis/engine');
+    const input = req.body as any;
+    const spec = CalcStructSpec(input);
+    const comment = generateStructComment(input, spec);
+    const bom = generateStructBOM(input, spec);
+    const labor = calcStructLabor(
+      input.panel, input.length, input.height, spec.span,
+      input.contract || '바이백', input.dustN || 0, input.dustH || 0,
+      spec.structType === 'H빔식'
+    );
+    return { spec, comment, bom, labor };
+  } catch (err: any) {
+    return reply.status(400).send({ error: err.message });
+  }
+});
+
+app.get('/api/engine/wind', async (req, reply) => {
+  try {
+    const { lookupWindSpeed } = await import('@axis/engine');
+    const { sido, sigungu } = req.query as any;
+    if (!sido) return reply.status(400).send({ error: 'sido required' });
+    return lookupWindSpeed(sido, sigungu || '');
+  } catch (err: any) {
+    return reply.status(400).send({ error: err.message });
+  }
+});
+
 // ── Platform Routes Plugin ─────────────────────────────────
 const platformRoutes = require('./platformRoutes').default;
 app.register(platformRoutes);
