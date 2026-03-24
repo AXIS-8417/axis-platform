@@ -64,6 +64,14 @@ export const WORK_PARAMS = {
   암반현장_연료비배수: 2,
   기초파이프_장비기준: 200,   // 본 이상이면 굴착기 추가
   장거리기준_장비추가: 1000,  // M 이상이면 굴착기 +1
+  // ── 노무비 설정 (엑셀 설정항목 시트) ──
+  앙카설치단가: 2500,        // 원/개
+  앙카해체단가: 1000,        // 원/개
+  데카설치단가: 4000,        // 원/M/단
+  데카해체단가: 2000,        // 원/M/단
+  파이프최소품: 1000000,     // 1식 기준 최소 장비비
+  H빔최소품: 1200000,       // 1일 기준 최소 장비비
+  거리할증단가: 150000,      // 50km당
   최소일일비용: 900000,
   목표마진율: 0.1,
   스카이임대료: 650000,
@@ -449,8 +457,15 @@ export function calcLabor(len: number, h: number, panel: string, span: number, i
     removeTotal = remBase + remPanel + remHBeam + remSpan + dustRem + periodSurch;
   }
 
-  return { installTotal, removeTotal, total: installTotal + removeTotal, workDays, periodSurch, dustInst, dustRem,
-           instSpan, perM: Math.round((installTotal + removeTotal) / len) };
+  // ═ 최소품 적용 (엑셀: 파이프최소품 1,000,000 / H빔최소품 1,200,000) ═
+  const minEquip = isHBeam ? WORK_PARAMS.H빔최소품 : WORK_PARAMS.파이프최소품;
+  const adjustedInstall = Math.max(installTotal, minEquip);
+  const adjustedRemove = isBB ? Math.max(removeTotal, minEquip) : 0;
+
+  return { installTotal: adjustedInstall, removeTotal: adjustedRemove,
+           total: adjustedInstall + adjustedRemove, workDays, periodSurch, dustInst, dustRem,
+           instSpan, perM: Math.round((adjustedInstall + adjustedRemove) / len),
+           minEquipApplied: installTotal < minEquip };
 }
 
 // ══════════════════════════════════════════
