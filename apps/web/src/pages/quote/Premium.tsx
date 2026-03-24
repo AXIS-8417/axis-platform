@@ -187,7 +187,7 @@ export default function Premium() {
             const sGyeongbi = (sR.eqpTotal || 0) + (sR.transTotal || 0);
             const pTrans = pR.transDetail || {};
             const sTrans = sR.transDetail || {};
-            const isBB = store.selectedCellKey?.includes('BB') || store.selectedCellKey?.includes('바이백');
+            const isBB = true; // Premium 페이지는 항상 바이백 기준 (contract: '바이백')
 
             return (
               <table className="w-full text-sm">
@@ -227,17 +227,10 @@ export default function Premium() {
                       {pTrans.trucks > 0 && (
                         <>
                           <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
-                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (편도)</td>
-                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
-                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
+                            <td className="py-1.5 pl-4 text-xs text-[#64748b]">├ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 × {pTrans.trips || 1}회 ({isBB ? '왕복-BB' : '편도'})</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.total)}원</td>
+                            <td className="text-right font-mono text-xs text-[#64748b]">{fmt(sTrans.total || pTrans.total)}원</td>
                           </tr>
-                          {isBB && (
-                            <tr className="border-b border-[#e5e7eb]/10 bg-[#f8fafc]">
-                              <td className="py-1.5 pl-4 text-xs text-[#64748b]">└ {pTrans.vehicle || '5톤'} {pTrans.trucks}대 × {fmt(pTrans.perTruck)}원 (복로-바이백)</td>
-                              <td className="text-right font-mono text-xs text-[#64748b]">{fmt(pTrans.trucks * pTrans.perTruck)}원</td>
-                              <td className="text-right font-mono text-xs text-[#64748b]">{fmt((sTrans.trucks || pTrans.trucks) * (sTrans.perTruck || pTrans.perTruck))}원</td>
-                            </tr>
-                          )}
                         </>
                       )}
                     </>
