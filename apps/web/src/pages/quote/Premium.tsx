@@ -6,7 +6,8 @@ import { exportQuotesToExcel, type QuoteSlotData, type ExportRow } from '../../l
 import {
   makeDesign, calcEstimate, getDustTier,
   REGION_DB as ENGINE_REGION_DB,
-  type QuoteInput, type CalcOpts,
+  CalcStructSpec, generateStructComment,
+  type QuoteInput, type CalcOpts, type StructSpecInput,
 } from '@axis/engine';
 
 const REGION_DB: Record<string, {Vo:number}> = {
@@ -17,26 +18,47 @@ const REGION_DB: Record<string, {Vo:number}> = {
 
 function fmt(n: number) { return n?.toLocaleString('ko-KR') ?? '-'; }
 
-// 구조판정 계산
-function calcStructure(Vo: number, h: number, span: number, embedM: number, panel: string) {
-  const pf = 0.5 * 0.122 * Math.pow(Vo / 10, 2) * 2.2;
-  const pw: Record<string, number> = { RPP: 0.45, EGI: 0.35, '스틸': 0.55 };
-  const p = pw[panel] || 0.45;
-  const bk01 = pf * span * span * 0.5 / (p * 8 * 0.28);
-  const bk02 = pf * h * span / (p * 14);
-  const bk03 = pf * h * span / (embedM * embedM * 16);
-  const bk04 = embedM >= 2.0 ? 2.6 : 2.1;
-  const grade = (v: number, lo: number, hi: number) => v >= hi ? 'NG' : v >= lo ? 'WARN' : 'PASS';
-  const checks = [
-    { name: 'BK_01 횡대 합성응력', val: bk01, status: grade(bk01, 0.85, 1.0), max: 1.5 },
-    { name: 'BK_02 지주 응력비', val: bk02, status: grade(bk02, 0.75, 0.90), max: 1.2 },
-    { name: 'BK_03 말뚝 응력비', val: bk03, status: grade(bk03, 0.75, 0.90), max: 1.2 },
-    { name: 'BK_04 인발 안전율', val: bk04, status: bk04 >= 3.0 ? 'NG' : bk04 >= 1.5 ? 'PASS' : 'WARN', max: 4.0 },
-  ];
-  const ngCount = checks.filter(c => c.status === 'NG').length;
-  const warnCount = checks.filter(c => c.status === 'WARN').length;
-  const overall = ngCount >= 1 ? 'F(부적합)' : warnCount >= 2 ? 'D(위험경계)' : warnCount === 1 ? 'C(경계)' : 'A(안전)';
-  return { checks, overall };
+// 구조판정 계산 — v76.5 엔진 기반
+function calcStructure(h: number, panel: string, address: string, span: number, embedM: number) {
+  // 주소에서 시도/시군구 추출
+  const sido = address.includes('서울') ? '서울특별시'
+    : address.includes('부산') ? '부산광역시' : address.includes('인천') ? '인천광역시'
+    : address.includes('대구') ? '대구광역시' : address.includes('대전') ? '대전광역시'
+    : address.includes('경기') ? '경기도' : address.includes('강원') ? '강원도'
+    : address.includes('제주') ? '제주특별자치도' : '서울특별시';
+  const sigungu = address.replace(/.*?(시|도)\s*/, '').replace(/(구|군|시).*/, '$1') || '';
+
+  const sInput: StructSpecInput = {
+    location: { sido, sigungu },
+    panel: panel === 'RPP' ? 'RPP방음판' : panel === 'EGI' ? 'EGI휀스' : '스틸방음판',
+    height: h, dustH: 0, dustN: 0, length: 100,
+    foundation: '기초파이프',
+  };
+
+  try {
+    const spec = CalcStructSpec(sInput);
+    const b = spec.basis;
+
+    // 입력된 span/embedM 기준으로 실제 응력비 재계산
+    const ratio = b.stressRatio * (span / spec.span); // 경간에 비례
+    const horiRatio = b.horiStressRatio;
+    const embedRatio = embedM > 0 ? b.pf_kN * h / (embedM * embedM * 0.5) * 0.01 : 0;
+    const fsVal = embedM >= 2.0 ? b.Fs : Math.max(1.0, b.Fs * 0.7);
+
+    const grade = (v: number, lo: number, hi: number) => v >= hi ? 'NG' : v >= lo ? 'WARN' : 'PASS';
+    const checks = [
+      { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5 },
+      { name: 'BK_02 지주 응력비', val: +ratio.toFixed(3), status: grade(ratio, 0.75, 0.90), max: 1.2 },
+      { name: 'BK_03 말뚝 응력비', val: +embedRatio.toFixed(3), status: grade(embedRatio, 0.75, 0.90), max: 1.2 },
+      { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1), status: fsVal >= 3.0 ? 'PASS' : fsVal >= 1.5 ? 'WARN' : 'NG', max: 4.0 },
+    ];
+    const ngCount = checks.filter(c => c.status === 'NG').length;
+    const warnCount = checks.filter(c => c.status === 'WARN').length;
+    const overall = ngCount >= 1 ? 'F(부적합)' : warnCount >= 2 ? 'D(위험경계)' : warnCount === 1 ? 'C(경계)' : 'A(안전)';
+    return { checks, overall };
+  } catch {
+    return { checks: [], overall: '계산 불가' };
+  }
 }
 
 // 환경판정 계산
@@ -47,7 +69,7 @@ function calcEnvironment(panel: string, h: number, mode: string, found: string, 
   const dust = Math.min(98, (dustBase[panel] || 79) + (h >= 5 ? 10 : h >= 4 ? 5 : 0));
   const vibBase = found === '앵커볼트' ? 84 : embedM >= 2 ? 78 : 70;
   const vib = Math.min(98, vibBase + (panel === '스틸' ? 5 : 0));
-  const wind = mode === '표준형' ? 89 : 80;
+  const wind = mode === '구조형' ? 89 : 80;
   const total = (noise / 40) * 35 + (dust / 100) * 30 + (vib / 100) * 20 + (wind / 100) * 15;
   const grade = total >= 85 ? 'A(우수)' : total >= 70 ? 'B(양호)' : total >= 55 ? 'C(보통)' : 'D(개선필요)';
   return { items: [
@@ -94,10 +116,11 @@ export default function Premium() {
 
   const regionData = REGION_DB[region] || { Vo: 26 };
 
-  const structP = practical?.design ? calcStructure(regionData.Vo, h, practical.design.span, practical.design.gichoLength ?? 1.5, panel) : null;
-  const structS = standard?.design ? calcStructure(regionData.Vo, h, standard.design.span, standard.design.gichoLength ?? 2.0, panel) : null;
+  const addr = store.address || '';
+  const structP = practical?.design ? calcStructure(h, panel, addr, practical.design.span, practical.design.gichoLength ?? 1.5) : null;
+  const structS = standard?.design ? calcStructure(h, panel, addr, standard.design.span, standard.design.gichoLength ?? 2.0) : null;
   const envP = practical?.design ? calcEnvironment(panel, h, '실전형', practical.design.found, practical.design.gichoLength ?? 1.5) : null;
-  const envS = standard?.design ? calcEnvironment(panel, h, '표준형', standard.design.found, standard.design.gichoLength ?? 2.0) : null;
+  const envS = standard?.design ? calcEnvironment(panel, h, '구조형', standard.design.found, standard.design.gichoLength ?? 2.0) : null;
 
   const statusColor = (s: string) => s === 'PASS' ? 'text-[#10b981]' : s === 'WARN' ? 'text-[#d97706]' : 'text-[#ef4444]';
   const barColor = (s: string) => s === 'PASS' ? 'bg-[#10b981]' : s === 'WARN' ? 'bg-[#d97706]' : 'bg-[#ef4444]';
@@ -144,10 +167,10 @@ export default function Premium() {
           <input type="range" min={1} max={36} value={bbMonths} onChange={e=>setBbMonths(Number(e.target.value))} className="w-full accent-[#2563eb]"/>
         </div>
 
-        {/* 실전형 vs 표준형 */}
+        {/* 실전형 vs 구조형 */}
         <div className="flex gap-4 mb-6">
           <Card title="실전형 (기본)" data={practical} color="border-[#2563eb]/50" />
-          <Card title="표준형 (구조보강)" data={standard} color="border-[#d97706]/50" />
+          <Card title="구조형 (구조보강)" data={standard} color="border-[#d97706]/50" />
         </div>
 
         {/* 탭 */}
@@ -168,7 +191,7 @@ export default function Premium() {
 
             return (
               <table className="w-full text-sm">
-                <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">표준형</th></tr></thead>
+                <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">항목</th><th className="text-right py-2 text-[#2563eb]">실전형</th><th className="text-right py-2 text-[#d97706]">구조형</th></tr></thead>
                 <tbody>
                   {[
                     ['자재비/M', pR.matM, sR.matM],
@@ -246,7 +269,7 @@ export default function Premium() {
           })()}
           {tab === 'design' && practical?.design && standard?.design && (
             <table className="w-full text-sm">
-              <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">조건</th><th className="text-right text-[#2563eb]">실전형</th><th className="text-right text-[#d97706]">표준형</th></tr></thead>
+              <thead><tr className="border-b border-[#e5e7eb]"><th className="text-left py-2 text-[#94a3b8]">조건</th><th className="text-right text-[#2563eb]">실전형</th><th className="text-right text-[#d97706]">구조형</th></tr></thead>
               <tbody>
                 {(() => {
                   const isHBeam = practical.design.structType?.includes('H빔') || standard.design.structType?.includes('H빔');
@@ -274,7 +297,7 @@ export default function Premium() {
           )}
           {tab === 'struct' && structP && structS && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[{title:'실전형',data:structP,color:'#2563eb'},{title:'표준형',data:structS,color:'#d97706'}].map(({title,data,color})=>(
+              {[{title:'실전형',data:structP,color:'#2563eb'},{title:'구조형',data:structS,color:'#d97706'}].map(({title,data,color})=>(
                 <div key={title}>
                   <h4 className="font-mono font-bold mb-3" style={{color}}>{title} — {data.overall}</h4>
                   {data.checks.map((ck: any)=>(
@@ -289,7 +312,7 @@ export default function Premium() {
           )}
           {tab === 'env' && envP && envS && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[{title:'실전형',data:envP,color:'#2563eb'},{title:'표준형',data:envS,color:'#d97706'}].map(({title,data,color})=>(
+              {[{title:'실전형',data:envP,color:'#2563eb'},{title:'구조형',data:envS,color:'#d97706'}].map(({title,data,color})=>(
                 <div key={title}>
                   <h4 className="font-mono font-bold mb-1" style={{color}}>{title} — {data.grade}</h4>
                   <div className="font-mono text-2xl mb-3" style={{color}}>{data.total}점</div>
@@ -308,7 +331,7 @@ export default function Premium() {
         {/* 선택 버튼 */}
         <div className="flex gap-4 mb-6">
           <button onClick={()=>navigate(`/quote/level/${id}`)} className="flex-1 py-3 rounded-lg bg-[#2563eb] text-[#f8fafc] font-bold hover:bg-[#2563eb]/80">실전형 선택</button>
-          <button onClick={()=>navigate(`/quote/level/${id}`)} className="flex-1 py-3 rounded-lg border border-[#d97706] text-[#d97706] font-bold hover:bg-[#d97706]/10">표준형 선택</button>
+          <button onClick={()=>navigate(`/quote/level/${id}`)} className="flex-1 py-3 rounded-lg border border-[#d97706] text-[#d97706] font-bold hover:bg-[#d97706]/10">구조형 선택</button>
         </div>
 
         {/* Excel 다운로드 */}
@@ -368,7 +391,7 @@ export default function Premium() {
 
               exportQuotesToExcel([
                 makeSlot('견적1-실전형', practical, '실전형'),
-                makeSlot('견적2-표준형', standard, '표준형'),
+                makeSlot('견적2-구조형', standard, '구조형'),
               ], '', new Date().toISOString().slice(0, 10));
             }}
             className="w-full py-3 rounded-lg border border-[#334155] text-[#94A3B8] font-bold hover:bg-[#111B2A] mb-6">
