@@ -995,3 +995,9 @@ export { checkPermission, getAccessibleResources, getPermissionMatrix, type Perm
 // ══════════════════════════════════════════
 export { calcEulReputation, isExcluded, REPUTATION_WEIGHTS, PENALTY_TABLE, type ReputationInput, type ReputationResult, type ExclusionReason, type PenaltyEvent } from './eulReputation';
 export { checkPendingNotifications, getDashboardColor, GAP_NOTIFICATIONS, EUL_NOTIFICATIONS, ALL_NOTIFICATIONS, type NotifyTarget, type NotificationRule, type ContractState, type PendingNotification, type DashboardColor } from './notificationEngine';
+
+// ══════════════════════════════════════════
+// 구조형(구조참고견적) 엔진 — v2.0
+// ══════════════════════════════════════════
+export { CalcStructSpec, generateStructComment, generateStructBOM, calcStructLabor, getJudgeThreshold, getGrade, JUDGE_RULES, STRUCT_DISCLAIMER, type StructSpecInput, type StructSpecResult, type StructBOMItem, type LaborResult as StructLaborResult } from './structSpec';
+export { lookupWindSpeed, WIND_DB, type WindData } from './wind';

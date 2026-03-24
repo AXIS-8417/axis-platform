@@ -6,6 +6,9 @@ import Stepper from '../../components/Stepper';
 import {
   calc8Matrix, getDustTier,
   type CalcOpts,
+  CalcStructSpec,
+  generateStructComment,
+  type StructSpecInput,
 } from '@axis/engine';
 
 const ASSETS = ['전체고재', '전체신재', '판넬만신재', '파이프만신재'] as const;
@@ -84,6 +87,9 @@ export default function Matrix() {
   const [gateSide, setGateSide] = useState<'좌측'|'우측'>('좌측');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [structSpec, setStructSpec] = useState<any>(null);
+  const [structComment, setStructComment] = useState<string[]>([]);
+  const [showStructDetail, setShowStructDetail] = useState(false);
 
   const isGangnam = (store.address || '').includes('강남');
 
@@ -102,6 +108,33 @@ export default function Matrix() {
       const result = calc8Matrix(input, floor, opts);
       setBbResults(result.bbResults || {}); setSellResults(result.sellResults || {});
       setDesign(result.design || {}); setTrend('FLAT'); setError('');
+
+      // 구조형 계산 (풍속 DB 기반)
+      try {
+        const addr = store.address || '';
+        const sido = addr.includes('서울') ? '서울특별시'
+          : addr.includes('부산') ? '부산광역시'
+          : addr.includes('인천') ? '인천광역시'
+          : addr.includes('대구') ? '대구광역시'
+          : addr.includes('대전') ? '대전광역시'
+          : addr.includes('광주') ? '광주광역시'
+          : addr.includes('울산') ? '울산광역시'
+          : addr.includes('세종') ? '세종특별자치시'
+          : addr.includes('제주') ? '제주특별자치도'
+          : addr.includes('경기') ? '경기도'
+          : addr.includes('강원') ? '강원도'
+          : '서울특별시';
+        const sigungu = addr.replace(/.*?(시|도)\s*/, '').replace(/(구|군|시).*/, '$1') || '';
+        const sInput: StructSpecInput = {
+          location: { sido, sigungu },
+          panel: panel === 'RPP' ? 'RPP방음판' : panel === 'EGI' ? 'EGI휀스' : '스틸방음판',
+          height: h, dustH: store.dustH || 0, dustN: (store.dustH || 0) > 0 ? Math.ceil((store.dustH || 0) / 1.5) : 0,
+          length: len, foundation: store.floorType || '기초파이프',
+        };
+        const spec = CalcStructSpec(sInput);
+        setStructSpec(spec);
+        setStructComment(generateStructComment(sInput, spec));
+      } catch { setStructSpec(null); }
     } catch (err: any) {
       setError(err.message || '계산 오류');
     } finally { setLoading(false); }
@@ -153,6 +186,65 @@ export default function Matrix() {
             <span className="ml-3">구조 타입: <strong className="text-[#7c3aed]">{stType(h)}</strong></span>
           </div>
         </div>
+
+        {/* 실전형 vs 구조형 비교 */}
+        {structSpec && (
+          <div className="bg-white border border-[#e5e7eb] rounded-xl p-4 mb-3">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[14px] font-bold text-[#0f172a]">실전형 vs 구조형 비교</span>
+              <button onClick={()=>setShowStructDetail(!showStructDetail)} className="text-[11px] text-[#2563eb] hover:underline">
+                {showStructDetail ? '접기' : '구조 근거 보기'}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#f0f9ff] rounded-lg p-3 border border-[#bae6fd]">
+                <div className="text-[11px] text-[#0369a1] font-semibold mb-1">■ 실전형</div>
+                <div className="text-[12px] space-y-0.5">
+                  <div>경간: <strong>3.0M</strong></div>
+                  <div>횡대: <strong>{design.hwangdae || '-'}단</strong></div>
+                  <div>기초: <strong>{design.gichoLength || 1.5}M</strong></div>
+                  <div>지주: <strong>1:1</strong></div>
+                </div>
+              </div>
+              <div className="bg-[#faf5ff] rounded-lg p-3 border border-[#d8b4fe]">
+                <div className="text-[11px] text-[#7c3aed] font-semibold mb-1">■ 구조형</div>
+                <div className="text-[12px] space-y-0.5">
+                  <div>경간: <strong className={structSpec.span < 3 ? 'text-[#dc2626]' : ''}>{structSpec.span}M</strong>
+                    {structSpec.span < 3 && <span className="text-[10px] text-[#dc2626] ml-1">(풍속 {structSpec.basis.Vo}m/s)</span>}
+                  </div>
+                  <div>횡대: <strong>{structSpec.horiTier}단</strong>
+                    <span className="text-[10px] text-[#64748b] ml-1">(응력비 {structSpec.basis.horiStressRatio.toFixed(2)})</span>
+                  </div>
+                  <div>기초: <strong className={structSpec.embedTotal > 2 ? 'text-[#dc2626]' : ''}>{structSpec.embedTotal}M</strong>
+                    <span className="text-[10px] text-[#64748b] ml-1">(근입{structSpec.embedDepth}+노출{structSpec.embedExposed})</span>
+                  </div>
+                  <div>지주: <strong>{structSpec.jijuRatio}</strong>
+                    {structSpec.hasBracing && <span className="text-[10px] text-[#7c3aed] ml-1">+보조지주</span>}
+                  </div>
+                  <div>구조타입: <strong>{structSpec.structType}</strong> ({structSpec.postSpec})</div>
+                </div>
+              </div>
+            </div>
+            {structSpec.warnings.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {structSpec.warnings.map((w: string, i: number) => (
+                  <div key={i} className="bg-[#fef2f2] border-l-[3px] border-[#ef4444] rounded-r-lg px-3 py-1.5 text-[11px] text-[#991b1b]">⚠ {w}</div>
+                ))}
+              </div>
+            )}
+            {showStructDetail && (
+              <div className="mt-3 bg-[#f8fafc] rounded-lg p-3 border border-[#e2e8f0]">
+                <div className="text-[11px] font-semibold text-[#334155] mb-2">구조 근거</div>
+                <div className="text-[11px] text-[#64748b] font-mono whitespace-pre-line leading-5">
+                  {structComment.join('\n')}
+                </div>
+              </div>
+            )}
+            <div className="mt-2 text-[10px] text-[#94a3b8] leading-4">
+              ※ 구조형은 AXIS 엔진이 현장 풍속·높이 기반으로 산출한 참고값이며, 법적 구조검토서를 대체하지 않습니다.
+            </div>
+          </div>
+        )}
 
         {/* 특수현장 노티스 배너 */}
         {(store.siteSlope === true || store.siteCurve === true || store.siteAdjacent === true) && (
