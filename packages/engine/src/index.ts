@@ -491,7 +491,7 @@ export interface EquipDetail {
   total: number;
 }
 
-export function calcEquipment(h: number, panel: string, totalLen: number, foundPipeQty: number, isHBeam: boolean): EquipDetail {
+export function calcEquipment(h: number, panel: string, totalLen: number, foundPipeQty: number, isHBeam: boolean, isBB: boolean = false): EquipDetail {
   const items: { name: string; qty: number; price: number; amount: number }[] = [];
 
   // ── 굴착기 ──
@@ -530,6 +530,12 @@ export function calcEquipment(h: number, panel: string, totalLen: number, foundP
     const ogaDays = Math.max(1, Math.ceil(totalLen / 3 / WORK_PARAMS.오가_일일작업량_일반)); // 약 3M 간격
     const ogaPrice = EQUIP_PRICE.소형오가.day;
     items.push({ name: '소형오가', qty: ogaDays, price: ogaPrice, amount: ogaDays * ogaPrice });
+  }
+
+  // ── H빔 + 바이백: 장비비 ×2 (해체 시 H빔을 잡아줘야 함) ──
+  if (isHBeam && isBB) {
+    const installTotal = items.reduce((s, it) => s + it.amount, 0);
+    items.push({ name: '해체장비(BB)', qty: 1, price: installTotal, amount: installTotal });
   }
 
   const total = items.reduce((s, it) => s + it.amount, 0);
@@ -875,7 +881,7 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
   }
 
   // ── 장비비 (엑셀 modCalcEngine 로직) ──
-  const eqp = calcEquipment(input.h, input.panel, L, bom.gichoQty, design.isHBeam);
+  const eqp = calcEquipment(input.h, input.panel, L, bom.gichoQty, design.isHBeam, isBB);
   const eqpTotal = eqp.total;
 
   const labor = calcLabor(L, input.h, input.panel, design.span, isBB, dustH, design.isHBeam);
