@@ -60,11 +60,32 @@ const PIPE = {
   tauA: 80,            // 허용전단응력 (MPa)
 };
 
-// H빔 제원 — DB_단면물성 시트 확정, Z_원본 우선
+// H빔 제원 — DB_단면물성 시트 23종 전수, Zx_원본 우선
+// SS400 Fy=235MPa, fba=156MPa(가설할증), tauA=94MPa
 const HBEAM: Record<string, { Z: number; A: number; Aw: number; fba: number }> = {
-  'H-148': { Z: 138000, A: 2648, Aw: 888,  fba: 156 },
-  'H-194': { Z: 277000, A: 3901, Aw: 1320, fba: 156 },
-  'H-200': { Z: 184000, A: 2716, Aw: 1012, fba: 156 },
+  'H-100x50':   { Z: 34400,  A: 1130, Aw: 430,  fba: 156 },
+  'H-100x100':  { Z: 77500,  A: 2104, Aw: 504,  fba: 156 },
+  'H-125x60':   { Z: 60900,  A: 1614, Aw: 654,  fba: 156 },
+  'H-125x125':  { Z: 136000, A: 2946, Aw: 696,  fba: 156 },
+  'H-150x75':   { Z: 89200,  A: 1730, Aw: 680,  fba: 156 },
+  'H-148':      { Z: 138000, A: 2580, Aw: 780,  fba: 156 },  // H-148x100x6x9 ✅구검
+  'H-150x150':  { Z: 219000, A: 3910, Aw: 910,  fba: 156 },
+  'H-175x90':   { Z: 143000, A: 2235, Aw: 795,  fba: 156 },
+  'H-175x175':  { Z: 356000, A: 4998, Aw: 1148, fba: 156 },
+  'H-200':      { Z: 184000, A: 2612, Aw: 1012, fba: 156 },  // H-200x100x5.5x8 ✅구검
+  'H-194':      { Z: 279000, A: 3756, Aw: 1056, fba: 156 },  // H-194x150x6x9 ✅구검
+  'H-200x204':  { Z: 498000, A: 7008, Aw: 2112, fba: 156 },
+  'H-200x200':  { Z: 472000, A: 6208, Aw: 1408, fba: 156 },  // ✅부천B=2
+  'H-250x125':  { Z: 356000, A: 3642, Aw: 1392, fba: 156 },
+  'H-244x175':  { Z: 512000, A: 5404, Aw: 1554, fba: 156 },
+  'H-250x250':  { Z: 757000, A: 8998, Aw: 1998, fba: 156 },
+  'H-300x150':  { Z: 557000, A: 4533, Aw: 1833, fba: 156 },
+  'H-294x200':  { Z: 836000, A: 6960, Aw: 2160, fba: 156 },
+  'H-300x300':  { Z: 1350000, A: 11700, Aw: 2700, fba: 156 },
+  'H-350x175':  { Z: 875000, A: 6146, Aw: 2296, fba: 156 },
+  'H-340x250':  { Z: 1430000, A: 9808, Aw: 2808, fba: 156 },
+  'H-350x350':  { Z: 2480000, A: 17044, Aw: 3744, fba: 156 },
+  'H-400x200':  { Z: 1310000, A: 8192, Aw: 2992, fba: 156 },
 };
 
 // 풍력계수 — 판넬별 분기 (v76.5 구검서 확정)
@@ -556,3 +577,18 @@ export const STRUCT_DISCLAIMER = `※ 본 견적의 구조 조건은 AXIS 엔진
 풍하중 계수(Kzr=0.81, Kzt=1.0, Iw=0.6, ρ=1.25)는 표준값을 적용하였고,
 지반 조건은 표준값(SPT=15, φ=30°)을 가정하였으며,
 실제 시공 시 현장 여건에 따라 전문 구조기술사의 검토를 받으시기 바랍니다.`;
+
+// ─── 실측마스터 9건 (캘리브레이션 검증용) ────────────────────
+// v76.5 엑셀 실측마스터_8건 시트에서 1:1 이식
+// ★ 이 값이 정답. 엔진 계산 결과는 이 값과 비교해서 오차 확인용.
+export const CALIBRATION_MASTER = [
+  { id: 'CAL01', name: '창동EGI3m', system: '비계', panel: 'EGI', totalH: 3, panelH: 3, dustH: 0, W: 2, Vo: 28, pf: 0.306, F1V: 0.747, fbR: 0.992, Fs: 1.36 },
+  { id: 'CAL02', name: '인천RPP4m', system: '비계', panel: 'RPP', totalH: 4, panelH: 4, dustH: 0, W: 3, Vo: 28, pf: 0.306, F1V: 0.394, fbR: 0.12, Fs: 1.82 },
+  { id: 'CAL03', name: '동탄비계4+1', system: '비계', panel: '일반', totalH: 5, panelH: 4, dustH: 1, W: 2, Vo: 26, pf: 0.263, F1V: 0.416, fbR: 0.583, Fs: 1.24 },
+  { id: 'CAL04', name: '파주비계4m', system: '비계', panel: '일반', totalH: 4, panelH: 4, dustH: 0, W: 2, Vo: 28, pf: 0.306, F1V: 0.751, fbR: 0.901, Fs: 1.99 },
+  { id: 'CAL05', name: '동탄H빔5+1', system: 'H-빔', panel: 'RPP', totalH: 6, panelH: 5, dustH: 1, W: 3, Vo: 26, pf: 0.263, F1V: 0.305, fbR: 0.628, Fs: 9.18 },
+  { id: 'CAL06', name: '동탄H빔6+1', system: 'H-빔', panel: 'RPP', totalH: 7, panelH: 6, dustH: 1, W: 3, Vo: 26, pf: 0.263, F1V: 0.377, fbR: 0.653, Fs: 11.68 },
+  { id: 'CAL07', name: '부천H빔B3', system: 'H-빔', panel: '일반', totalH: 6, panelH: 6, dustH: 0, W: 3, Vo: 26, pf: 0.736, F1V: 0, fbR: 0, Fs: 0 },
+  { id: 'CAL08', name: '부천H빔B2', system: 'H-빔', panel: '일반', totalH: 6, panelH: 6, dustH: 0, W: 2, Vo: 26, pf: 0.736, F1V: 0.74, fbR: 0.862, Fs: 0 },
+  { id: 'CAL09', name: '양주RPP6m', system: '비계(보조지주)', panel: 'RPP', totalH: 6, panelH: 6, dustH: 0, W: 2, Vo: 28, pf: 0.33, F1V: 0, fbR: 0, Fs: 1.29 },
+] as const;
