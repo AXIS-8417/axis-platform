@@ -90,40 +90,51 @@ function calcStructure(
     const phi_Pn = 0.85 * 235 * 334.5;
     const axialRatio = isHBeam ? 0 : P_axial / (2 * phi_Pn);
 
-    const grade = (v: number, lo: number, hi: number) => v >= hi ? 'NG' : v >= lo ? 'WARN' : 'PASS';
-    const gradeLT = (v: number, warnTh: number, ngTh: number) => v < ngTh ? 'NG' : v < warnTh ? 'WARN' : 'PASS';
+    // ★ v2.1: GT(값↑위험) / LT(값↓위험) 명시적 분리
+    // GT: 응력비 등 — warnVal 이상이면 WARN, ngVal 초과하면 NG
+    const gradeGT = (v: number, warnVal: number, ngVal: number) =>
+      v > ngVal ? 'NG' : v > warnVal ? 'WARN' : 'PASS';
+    // LT: 안전율 등 — warnVal 미만이면 WARN, ngVal 미만이면 NG
+    const gradeLT = (v: number, warnVal: number, ngVal: number) =>
+      v < ngVal ? 'NG' : v < warnVal ? 'WARN' : 'PASS';
 
     // ★ H빔식: HB룰 적용, BK_03/BK_04(파이프 인발) 제거
     // H빔은 콘크리트 기초이므로 파이프 인발 검토 불필요
     let checks: { name: string; val: number; status: string; max: number; fix?: string }[];
 
     if (isHBeam) {
-      // HB룰: H빔식 전용
-      const hbTipover = embedM > 0 ? fsVal : 999; // 콘크리트 기초 전도는 참고만
+      // HB룰: H빔식 전용 (DB_판정룰 확정)
+      const hbTipover = embedM > 0 ? fsVal : 999;
       checks = [
-        { name: 'HB_01 H빔 휨응력비', val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.85, 1.0), max: 1.2,
-          fix: stressRatio >= 1.0 ? `경간 축소 또는 상위규격 H빔 필요 (현재 ${spec.postSpec})` : undefined },
-        { name: 'HB_02 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.2), max: 1.5,
-          fix: horiRatio >= 1.2 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
+        { name: 'HB_01 H빔 휨응력비', val: +stressRatio.toFixed(3),
+          status: gradeGT(stressRatio, 0.85, 1.0), max: 1.2,
+          fix: stressRatio > 1.0 ? `H빔 규격 상향 필요 (현재 ${spec.postSpec})` : undefined },
+        { name: 'HB_02 횡대 합성응력', val: +horiRatio.toFixed(3),
+          status: gradeGT(horiRatio, 0.85, 1.2), max: 1.5,
+          fix: horiRatio > 1.2 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
         { name: 'HB_03 전도 안전율(참고)', val: +(hbTipover > 99 ? 0 : hbTipover).toFixed(2),
           status: hbTipover >= 1.5 ? 'PASS' : hbTipover >= 1.2 ? 'WARN' : 'PASS', max: 4.0,
-          fix: undefined },  // 콘크리트 기초는 면책
+          fix: undefined },
       ];
-      // HB_03은 참고값 — 콘크리트 기초 설계는 구검서 영역
-      if (embedM === 0) {
-        checks[2].val = 0; checks[2].status = 'PASS';
-      }
+      if (embedM === 0) { checks[2].val = 0; checks[2].status = 'PASS'; }
     } else {
-      // BK룰: 비계식 전용
+      // BK룰: 비계식 전용 (DB_판정룰 확정)
+      // BK_01: GT, pass=0.85, warn=0.85, ng=1.0
+      // BK_02: GT, pass=0.75, warn=0.90, ng=1.0
+      // BK_03: GT, pass=0.75, warn=0.90, ng=1.0
+      // BK_04: LT, pass=3.0, warn=1.5, ng=1.2  ★NG는 1.2(v2.1 확정)
       checks = [
-        { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5,
-          fix: horiRatio >= 1.0 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
-        { name: 'BK_02 지주 응력비', val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.90, 1.0), max: 1.2,
-          fix: stressRatio >= 1.0 ? `경간 축소 또는 보조지주 추가 필요 (현재 ${span}M)` : undefined },
-        { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.90, 1.0), max: 1.2 },
+        { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3),
+          status: gradeGT(horiRatio, 0.85, 1.0), max: 1.5,
+          fix: horiRatio > 1.0 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
+        { name: 'BK_02 지주 응력비', val: +stressRatio.toFixed(3),
+          status: gradeGT(stressRatio, 0.90, 1.0), max: 1.2,
+          fix: stressRatio > 1.0 ? `경간 축소 또는 보조지주 추가 필요 (현재 ${span}M)` : undefined },
+        { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3),
+          status: gradeGT(axialRatio, 0.90, 1.0), max: 1.2 },
         { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1),
-          status: gradeLT(fsVal, 3.0, 1.5), max: 4.0,
-          fix: fsVal < 1.5 ? `기초 ${Math.ceil((embedM + 1) * 2) / 2}M 이상 필요 (현재 ${embedM}M)` : undefined },
+          status: gradeLT(fsVal, 1.5, 1.2), max: 4.0,
+          fix: fsVal < 1.2 ? `기초 ${Math.ceil((embedM + 1) * 2) / 2}M 이상 필요 (현재 ${embedM}M)` : undefined },
       ];
     }
 

@@ -330,9 +330,19 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
   // STEP 7: 횡대 단수
   let horiTier: number;
   let horiStressRatio = 0;
+  // ★ v2.1: 횡대 확정표 (계산식이 아닌 확정 테이블)
+  const STRUCT_TIER: Record<number, number> = {
+    1: 2, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 7, 8: 8,
+  };
+
   if (structType === 'H빔식') {
-    horiTier = Math.max(3, Math.ceil(totalH * 0.8));
-    // H빔도 횡대 응력비 계산 (횡대는 파이프이므로 동일 로직)
+    // H빔: 확정표 기반 + 응력비 검증
+    const panelH = Math.floor(input.height);
+    horiTier = STRUCT_TIER[panelH] ?? Math.max(3, panelH);
+    // 분진망 단수 추가
+    horiTier += input.dustN;
+
+    // 횡대 응력비 계산 (횡대는 비계파이프 Φ48.6)
     const hBurden = input.height / Math.max(1, horiTier - 1);
     const hW_wind = pf * 1000 * hBurden;
     const hW_dead = 300 * hBurden;
@@ -341,6 +351,7 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
       (hW_wind * span * span / 10) ** 2
     );
     horiStressRatio = (hM * 1000 / PIPE.Z) / PIPE.fba;
+    // 응력비 초과 시 단수 추가
     while (horiStressRatio > 1.0 && horiTier < 10) {
       horiTier++;
       const nb = input.height / Math.max(1, horiTier - 1);
@@ -349,23 +360,25 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
       horiStressRatio = (nm * 1000 / PIPE.Z) / PIPE.fba;
     }
   } else {
-    const panelH = input.height;
-    horiTier = Math.ceil(panelH / 1.2) + 1;
-    if (horiTier < 3) horiTier = 3;
+    // 비계식: 확정표 기반 + 응력비 검증
+    const panelH = Math.floor(input.height);
+    horiTier = STRUCT_TIER[panelH] ?? Math.max(3, panelH);
+    // 분진망 단수 추가
+    horiTier += input.dustN;
 
-    const burden = panelH / (horiTier - 1);
+    const burden = input.height / Math.max(1, horiTier - 1);
     const W_wind = pf * 1000 * burden;
     const W_dead = 300 * burden;
     const M_h = Math.sqrt(
       (W_dead * span * span / 10) ** 2 +
       (W_wind * span * span / 10) ** 2
     );
-    const fb_h = M_h * 1000 / PIPE.Z;
-    horiStressRatio = fb_h / PIPE.fba;
+    horiStressRatio = (M_h * 1000 / PIPE.Z) / PIPE.fba;
 
+    // 응력비 초과 시 단수 추가
     while (horiStressRatio > 1.0 && horiTier < 10) {
       horiTier++;
-      const newBurden = panelH / (horiTier - 1);
+      const newBurden = input.height / (horiTier - 1);
       const newW = pf * 1000 * newBurden;
       const newM = Math.sqrt(
         (300 * newBurden * span * span / 10) ** 2 +
@@ -373,8 +386,6 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
       );
       horiStressRatio = (newM * 1000 / PIPE.Z) / PIPE.fba;
     }
-
-    horiTier = horiTier + input.dustN;
   }
 
   // STEP 8: 기초파이프
