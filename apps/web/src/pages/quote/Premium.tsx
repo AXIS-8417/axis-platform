@@ -118,11 +118,11 @@ function calcStructure(
       checks = [
         { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5,
           fix: horiRatio >= 1.0 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
-        { name: 'BK_02 지주 응력비', val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.75, 0.90), max: 1.2,
-          fix: stressRatio >= 0.90 ? `경간 축소 필요 (현재 ${span}M)` : undefined },
-        { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.75, 0.90), max: 1.2 },
+        { name: 'BK_02 지주 응력비', val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.90, 1.0), max: 1.2,
+          fix: stressRatio >= 1.0 ? `경간 축소 또는 보조지주 추가 필요 (현재 ${span}M)` : undefined },
+        { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.90, 1.0), max: 1.2 },
         { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1),
-          status: gradeLT(fsVal, 3.0, 1.2), max: 4.0,
+          status: gradeLT(fsVal, 3.0, 1.5), max: 4.0,
           fix: fsVal < 1.5 ? `기초 ${Math.ceil((embedM + 1) * 2) / 2}M 이상 필요 (현재 ${embedM}M)` : undefined },
       ];
     }

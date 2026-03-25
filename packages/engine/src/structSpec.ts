@@ -307,6 +307,21 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
       const ratio = calcScaffoldStress(totalH, input.height, input.dustH, s, pf, K_dist);
       if (ratio <= 1.0) { span = s; stressRatio = ratio; break; }
     }
+    // ★ 보조지주 없이 응력비 > 0.90(WARN 구간)이면, 보조지주 추가 시도
+    // 보조지주 K_dist가 더 낮으므로 응력비가 개선됨
+    if (!hasBracing && stressRatio > 0.90) {
+      const K_braced = Math.exp(0.449 - 0.659 * totalH);
+      for (const s of candidates) {
+        const ratio = calcScaffoldStress(totalH, input.height, input.dustH, s, pf, K_braced);
+        if (ratio <= 0.85) {
+          hasBracing = true;
+          K_dist = K_braced;
+          span = s; stressRatio = ratio;
+          warnings.push(`보조지주 추가로 응력비 개선 (${ratio.toFixed(2)} ≤ 0.85)`);
+          break;
+        }
+      }
+    }
     if (stressRatio > 1.0) {
       warnings.push(`경간 1.5M에서도 응력비 ${stressRatio.toFixed(2)} > 1.0. 구조검토서 필수.`);
     }
