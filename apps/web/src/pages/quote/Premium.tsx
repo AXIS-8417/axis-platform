@@ -91,18 +91,46 @@ function calcStructure(
     const axialRatio = isHBeam ? 0 : P_axial / (2 * phi_Pn);
 
     const grade = (v: number, lo: number, hi: number) => v >= hi ? 'NG' : v >= lo ? 'WARN' : 'PASS';
-    const checks = [
-      { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5 },
-      { name: isHBeam ? 'BK_02 H빔 응력비' : 'BK_02 지주 응력비',
-        val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.75, 0.90), max: 1.2 },
-      { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.75, 0.90), max: 1.2 },
-      { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1),
-        status: fsVal >= 3.0 ? 'PASS' : fsVal >= 1.5 ? 'WARN' : 'NG', max: 4.0 },
-    ];
+    const gradeLT = (v: number, warnTh: number, ngTh: number) => v < ngTh ? 'NG' : v < warnTh ? 'WARN' : 'PASS';
+
+    // ★ H빔식: HB룰 적용, BK_03/BK_04(파이프 인발) 제거
+    // H빔은 콘크리트 기초이므로 파이프 인발 검토 불필요
+    let checks: { name: string; val: number; status: string; max: number; fix?: string }[];
+
+    if (isHBeam) {
+      // HB룰: H빔식 전용
+      const hbTipover = embedM > 0 ? fsVal : 999; // 콘크리트 기초 전도는 참고만
+      checks = [
+        { name: 'HB_01 H빔 휨응력비', val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.85, 1.0), max: 1.2,
+          fix: stressRatio >= 1.0 ? `경간 축소 또는 상위규격 H빔 필요 (현재 ${spec.postSpec})` : undefined },
+        { name: 'HB_02 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.2), max: 1.5,
+          fix: horiRatio >= 1.2 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
+        { name: 'HB_03 전도 안전율(참고)', val: +(hbTipover > 99 ? 0 : hbTipover).toFixed(2),
+          status: hbTipover >= 1.5 ? 'PASS' : hbTipover >= 1.2 ? 'WARN' : 'PASS', max: 4.0,
+          fix: undefined },  // 콘크리트 기초는 면책
+      ];
+      // HB_03은 참고값 — 콘크리트 기초 설계는 구검서 영역
+      if (embedM === 0) {
+        checks[2].val = 0; checks[2].status = 'PASS';
+      }
+    } else {
+      // BK룰: 비계식 전용
+      checks = [
+        { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5,
+          fix: horiRatio >= 1.0 ? `횡대 단수 증가 필요 (현재 ${horiTier}단)` : undefined },
+        { name: 'BK_02 지주 응력비', val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.75, 0.90), max: 1.2,
+          fix: stressRatio >= 0.90 ? `경간 축소 필요 (현재 ${span}M)` : undefined },
+        { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.75, 0.90), max: 1.2 },
+        { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1),
+          status: gradeLT(fsVal, 3.0, 1.2), max: 4.0,
+          fix: fsVal < 1.5 ? `기초 ${Math.ceil((embedM + 1) * 2) / 2}M 이상 필요 (현재 ${embedM}M)` : undefined },
+      ];
+    }
+
     const ngCount = checks.filter(c => c.status === 'NG').length;
     const warnCount = checks.filter(c => c.status === 'WARN').length;
     const overall = ngCount >= 1 ? 'F(부적합)' : warnCount >= 2 ? 'D(위험경계)' : warnCount === 1 ? 'C(경계)' : 'A(안전)';
-    return { checks, overall, basis: { ...b, stressRatio, horiStressRatio: horiRatio, Fs: fsVal, pf_kN: pf } };
+    return { checks, overall, basis: { ...b, stressRatio, horiStressRatio: horiRatio, Fs: fsVal, pf_kN: pf }, isHBeam };
   } catch {
     return { checks: [], overall: '계산 불가', basis: null };
   }
@@ -379,13 +407,28 @@ export default function Premium() {
                       </p>
                       {data.checks.map((ck: any)=>(
                         <div key={ck.name} className="mb-3">
-                          <div className="flex justify-between text-xs mb-1"><span>{ck.name}</span><span className={statusColor(ck.status)}>{ck.val.toFixed(3)} {ck.status}</span></div>
-                          <div className="h-2 bg-[#e5e7eb] rounded"><div className={`h-2 rounded ${barColor(ck.status)}`} style={{width:`${Math.min(100,ck.val/ck.max*100)}%`}}/></div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className={ck.status === 'NG' ? 'text-[#dc2626] font-bold' : ''}>{ck.name}</span>
+                            <span className={statusColor(ck.status)}>{typeof ck.val === 'number' ? ck.val.toFixed(3) : ck.val} {ck.status}</span>
+                          </div>
+                          <div className="h-2 bg-[#e5e7eb] rounded"><div className={`h-2 rounded ${barColor(ck.status)}`} style={{width:`${Math.min(100, Math.abs(ck.val)/ck.max*100)}%`}}/></div>
+                          {/* N.G./WARN 해결방안 코멘트 */}
+                          {ck.fix && (ck.status === 'NG' || ck.status === 'WARN') && (
+                            <p className="text-[10px] mt-1 text-[#dc2626]">→ {ck.fix}</p>
+                          )}
                         </div>
                       ))}
                     </div>
                   ))}
                 </div>
+
+                {/* H빔 콘크리트 기초 면책 */}
+                {structS?.isHBeam && (
+                  <div className="bg-[#eff6ff] border border-[#93c5fd] rounded-lg p-2.5 mb-3 text-[11px] text-[#1e40af]">
+                    ※ H빔식은 콘크리트 기초에 H빔을 매립하는 구조입니다.
+                    파이프 인발 검토(BK_04)는 적용되지 않으며, 콘크리트 기초 설계는 구조검토서에 따릅니다.
+                  </div>
+                )}
 
                 {/* ③ 면책 문구 (접힘) */}
                 <details className="text-[11px] text-[#94a3b8] border-t border-[#e5e7eb] pt-2">
