@@ -433,20 +433,19 @@ export default function Premium() {
                 const r = data.result;
                 const d = data.design;
                 const rows: ExportRow[] = [];
-                // 자재 BOM
-                if (r.bom) {
-                  const bomEntries = [
-                    { name: panel + '방음판', qty: r.bom.panelQty, cat: 'mat' as const },
-                    { name: '주주파이프', qty: r.bom.juju, cat: 'mat' as const },
-                    { name: '횡대파이프', qty: r.bom.hwCnt, cat: 'mat' as const },
-                    { name: '지주파이프', qty: r.bom.jiuju, cat: 'mat' as const },
-                    { name: '기초파이프', qty: r.bom.gichoQty, cat: 'mat' as const },
-                    { name: '고정클램프', qty: r.bom.gojung, cat: 'mat' as const },
-                    { name: '자동클램프', qty: r.bom.jadong, cat: 'mat' as const },
-                    { name: '연결핀', qty: r.bom.pin, cat: 'mat' as const },
-                  ].filter(b => b.qty > 0);
-                  for (const b of bomEntries) {
-                    rows.push({ name: b.name, spec: '', unit: 'EA', qty: b.qty, price: 0, amount: 0, finalAmount: 0, assetType: '', basis: '', category: b.cat });
+                // 자재 BOM — calcEstimate의 items에서 단가/금액/BB 포함
+                if (r.items && r.items.length > 0) {
+                  for (const it of r.items) {
+                    if (it.qty <= 0) continue;
+                    const amt = it.qty * it.price;
+                    const bbAmt = it.bbDeduct || 0;
+                    rows.push({
+                      name: it.name, spec: it.spec || '', unit: 'EA',
+                      qty: it.qty, price: it.price, amount: amt,
+                      bbAmount: bbAmt > 0 ? -bbAmt : undefined,
+                      finalAmount: amt - bbAmt,
+                      assetType: it.bbGrade || '', basis: '', category: 'mat',
+                    });
                   }
                 }
                 // 노무비
