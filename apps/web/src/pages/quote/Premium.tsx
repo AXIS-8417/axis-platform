@@ -182,9 +182,44 @@ export default function Premium() {
       const input: QuoteInput = { region, len, panel, h, floor, asset: '전체고재' as any, contract: '바이백' };
       const opts: CalcOpts = { bbMonths, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: dH };
       const ct = store.constructionType as '자동' | '비계식' | 'H빔식' | undefined;
+      // 실전형: 하드코딩 기본값
       const dJ = makeDesign(h, floor, panel, false, dustN, ct);
-      const dP = makeDesign(h, floor, panel, true, dustN, ct);
       setPractical({ design: dJ, result: calcEstimate(input, dJ, opts) });
+
+      // 구조형: CalcStructSpec 결과로 설계값 덮어쓰기
+      const dP = makeDesign(h, floor, panel, true, dustN, ct);
+      try {
+        const sido = (store.address || '').includes('서울') ? '서울특별시'
+          : (store.address || '').includes('부산') ? '부산광역시'
+          : (store.address || '').includes('인천') ? '인천광역시'
+          : (store.address || '').includes('대구') ? '대구광역시'
+          : (store.address || '').includes('대전') ? '대전광역시'
+          : (store.address || '').includes('경기') ? '경기도'
+          : (store.address || '').includes('강원') ? '강원도'
+          : (store.address || '').includes('제주') ? '제주특별자치도' : '서울특별시';
+        const sigungu = (store.address || '').replace(/.*?(시|도)\s*/, '').replace(/(구|군|시).*/, '$1') || '';
+        const sInput: StructSpecInput = {
+          location: { sido, sigungu },
+          panel: panel === 'RPP' ? 'RPP방음판' : panel === 'EGI' ? 'EGI휀스' : '스틸방음판',
+          height: h, dustH: dH, dustN, length: len,
+          foundation: floor === '콘크리트' ? '콘크리트' : '기초파이프',
+          constructionType: ct,
+        };
+        const spec = CalcStructSpec(sInput);
+        // 구조형 Design을 구조계산 결과로 덮어쓰기
+        dP.span = spec.span;
+        dP.hwangdae = spec.horiTier;
+        dP.gichoLength = spec.embedTotal > 0 ? spec.embedTotal : dP.gichoLength;
+        dP.jiju = spec.jijuRatio;
+        dP.bojo = spec.hasBracing ? '삼각트러스(6M+4M+1M)' : '없음';
+        if (spec.structType === 'H빔식') {
+          dP.postSpec = spec.postSpec;
+          dP.isHBeam = true;
+          dP.structType = 'H빔식';
+          dP.found = 'H빔 기초';
+          dP.jiju = 'H빔 자립';
+        }
+      } catch (e) { console.warn('구조형 CalcStructSpec 오류, 기본값 사용:', e); }
       setStandard({ design: dP, result: calcEstimate(input, dP, opts) });
     } catch (e) { console.error('엔진 계산 오류:', e); }
     finally { setLoading(false); }
