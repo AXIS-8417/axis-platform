@@ -214,14 +214,16 @@ export default function AdminReport() {
       };
       const opts: CalcOpts = { bbMonths, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: dH };
 
+      const ct = store.constructionType as '자동' | '비계식' | 'H빔식' | undefined;
+
       // 실전형
-      const dJ = makeDesign(h, floor, panel, false, dustN);
+      const dJ = makeDesign(h, floor, panel, false, dustN, ct);
       const rJ = calcEstimate(input, dJ, opts);
       const bomJ = calcBOM(len, h, panel, dJ, dustN);
       const labJ = calcLabor(len, h, panel, dJ.span, true, dH, dJ.isHBeam ?? false);
 
       // 구조형
-      const dP = makeDesign(h, floor, panel, true, dustN);
+      const dP = makeDesign(h, floor, panel, true, dustN, ct);
       const rP = calcEstimate(input, dP, opts);
       const bomP = calcBOM(len, h, panel, dP, dustN);
       const labP = calcLabor(len, h, panel, dP.span, true, dH, dP.isHBeam ?? false);

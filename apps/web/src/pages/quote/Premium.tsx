@@ -153,8 +153,9 @@ export default function Premium() {
       const dustN = getDustTier(dH);
       const input: QuoteInput = { region, len, panel, h, floor, asset: '전체고재' as any, contract: '바이백' };
       const opts: CalcOpts = { bbMonths, gate: '없음', doorGrade: '신재', doorW: 4, doorMesh: false, dustH: dH };
-      const dJ = makeDesign(h, floor, panel, false, dustN);
-      const dP = makeDesign(h, floor, panel, true, dustN);
+      const ct = store.constructionType as '자동' | '비계식' | 'H빔식' | undefined;
+      const dJ = makeDesign(h, floor, panel, false, dustN, ct);
+      const dP = makeDesign(h, floor, panel, true, dustN, ct);
       setPractical({ design: dJ, result: calcEstimate(input, dJ, opts) });
       setStandard({ design: dP, result: calcEstimate(input, dP, opts) });
     } catch (e) { console.error('엔진 계산 오류:', e); }

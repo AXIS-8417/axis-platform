@@ -355,23 +355,26 @@ export function getStructType(h: number): string {
 // Design
 // ══════════════════════════════════════════
 export interface Design {
-  mode:'실전형'|'표준형'; span:number; jiju:string; bojo:string;
-  hwangdae:number; found:'기초파이프'|'앵커볼트'; gichoLength:number|null;
+  mode:'실전형'|'구조형'|'표준형'; span:number; jiju:string; bojo:string;
+  hwangdae:number; found:'기초파이프'|'앵커볼트'|'H빔 기초'; gichoLength:number|null;
   structType:string; isStd:boolean; isHBeam:boolean;
 }
 
-export function makeDesign(h: number, floor: string, panel: string, std: boolean, dustN: number = 0): Design {
+export function makeDesign(h: number, floor: string, panel: string, std: boolean, dustN: number = 0, constructionType?: '자동' | '비계식' | 'H빔식'): Design {
   const gl = getGichoLength(h, std, floor);
-  const st = getStructType(h);
-  const isHB = st.includes('H빔');
+  // 사용자 선택 우선, 자동이면 높이 기반
+  const userHBeam = constructionType === 'H빔식' || ((!constructionType || constructionType === '자동') && h >= 7);
+  const st = userHBeam ? 'H빔식 추천' : getStructType(h);
+  const isHB = userHBeam;
   return {
-    mode: std?'표준형':'실전형', span: std?2.0:3.0,
-    jiju: isHB ? 'N/A (H빔 자립)' : (std?'2:1':'1:1'),
-    bojo: isHB ? 'N/A (H빔 자립)' : (std?'2:1':(h>=5?'2:1':'없음')),
+    mode: std?'구조형':'실전형', span: std?2.0:3.0,
+    jiju: isHB ? 'H빔 자립' : (std?'2:1':'1:1'),
+    bojo: isHB ? 'H빔 자립' : (std?'2:1':(h>=5?'2:1':'없음')),
     hwangdae: getFinalHwangdae(h, panel, std, dustN),
-    found: floor==='콘크리트'?'앵커볼트':'기초파이프',
-    gichoLength: gl, structType: st, isStd: std,
-    isHBeam: st.includes('H빔'),
+    found: isHB ? 'H빔 기초' : (floor==='콘크리트'?'앵커볼트':'기초파이프'),
+    gichoLength: isHB ? gl : gl,  // H빔도 근입깊이 존재 (CalcStructSpec에서 계산)
+    structType: st, isStd: std,
+    isHBeam: isHB,
   };
 }
 
