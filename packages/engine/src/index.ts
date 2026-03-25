@@ -384,21 +384,24 @@ export function makeDesign(h: number, floor: string, panel: string, std: boolean
 export function calcBOM(len: number, h: number, panel: string, design: Design, dustN: number) {
   const span = design.span;
   const juju = Math.ceil(len / span) + 1;
-  // H빔: 지주파이프=0, 보조지주=0 (VBA modStructural line 845-861)
+  // H빔: 지주파이프=0, 보조지주=0, 자동클램프=0 (VBA modBOM line 107-119)
   const jiuju = design.isHBeam ? 0 : juju - 1;
   const hwN = design.hwangdae;
   // BUG-02: 횡대수 = (floor(len/6)+1)*단수-1
   const hwCnt = (Math.floor(len / 6) + 1) * hwN - 1;
-  // H빔: 클램프는 횡대 기반 (지주 없으므로 jadong 조정)
-  const jadong = design.isHBeam ? juju - 1 : juju + jiuju - 1;
-  // BUG-05: 고정클 = 자동클 × 2.54
-  const gojung = Math.round(jadong * 2.54);
+  // H빔: 자동클=0, 고정클=기초파이프수(기초+횡대 체결), 연결핀=횡대수
+  // 비계: 자동클=주주+지주-1, 고정클=Round(자동×2.54), 연결핀=횡대수
+  const jadong = design.isHBeam ? 0 : juju + jiuju - 1;
+  const gichoForClamp = design.isHBeam ? juju * 2 : 0;
+  const gojung = design.isHBeam ? gichoForClamp : Math.round(jadong * 2.54);
   const pin = hwCnt;
   const dustRolls = dustN > 0 ? Math.max(1, Math.ceil(len / 40)) : 0;
-  // H빔: 기초파이프 = 주주 × 2 (양쪽), 비계식: 주주+지주
-  const gichoQty = design.found === '기초파이프'
-    ? (design.isHBeam ? juju * 2 : juju + jiuju)
-    : 0;
+  // H빔: 기초파이프 = 주주 × 2 (H빔 양쪽 고정, VBA modBOM line 354-355)
+  // 비계식: 주주+지주
+  // H빔은 found가 'H빔 기초'여도 기초파이프 필요 (VBA: '기초파이프' 행에 mainPostCnt*2)
+  const gichoQty = design.isHBeam
+    ? juju * 2
+    : (design.found === '기초파이프' ? juju + jiuju : 0);
 
   // 판넬수
   let panelQty: number;
@@ -494,30 +497,33 @@ export interface EquipDetail {
   total: number;
 }
 
-export function calcEquipment(h: number, panel: string, totalLen: number, foundPipeQty: number, isHBeam: boolean, isBB: boolean = false): EquipDetail {
+export function calcEquipment(
+  h: number, panel: string, totalLen: number, foundPipeQty: number,
+  isHBeam: boolean, isBB: boolean = false, hbeamQty: number = 0,
+): EquipDetail {
   const items: { name: string; qty: number; price: number; amount: number }[] = [];
 
-  // ── 굴착기 ──
+  // ── 굴착기 (VBA line 481-487) ──
+  // ceil(foundPipeQty / 200) + (L≥1000→+1), 최소 1대
   let excavCnt = foundPipeQty > 0 ? Math.ceil(foundPipeQty / WORK_PARAMS.기초파이프_장비기준) : 1;
   if (totalLen >= WORK_PARAMS.장거리기준_장비추가) excavCnt += 1;
   if (excavCnt === 0) excavCnt = 1;
   const excavPrice = EQUIP_PRICE.굴착기.day;
   items.push({ name: '굴착기', qty: excavCnt, price: excavPrice, amount: excavCnt * excavPrice });
 
-  // ── 스카이 (높이에 따라) ──
+  // ── 스카이 (VBA line 498-516) ──
   let needSky = false, skyLen = 0;
   if (panel === '스틸' && h >= 4) { needSky = true; skyLen = 130 - (h - 4) * 20; }
   else if (panel === 'RPP' && h >= 7) { needSky = true; skyLen = 150 - (h - 7) * 20; }
   else if (panel === 'EGI' && h > 4) { needSky = true; skyLen = 150 - (h - 5) * 20; }
   if (skyLen < 10) skyLen = 10;
-
   if (needSky && skyLen > 0) {
     const skyCnt = Math.ceil(totalLen / skyLen);
     const skyPrice = EQUIP_PRICE.스카이.day;
     items.push({ name: '스카이', qty: skyCnt, price: skyPrice, amount: skyCnt * skyPrice });
   }
 
-  // ── 5톤크레인 (RPP H≥7) ──
+  // ── 5톤크레인 (VBA line 519-533: RPP H≥7) ──
   if (panel === 'RPP' && h >= 7) {
     let craneLen = 150 - (h - 7) * 20;
     if (craneLen < 10) craneLen = 10;
@@ -526,19 +532,20 @@ export function calcEquipment(h: number, panel: string, totalLen: number, foundP
     items.push({ name: '5톤크레인', qty: craneCnt, price: cranePrice, amount: craneCnt * cranePrice });
   }
 
-  // ── 오가 (H빔 구조) ──
-  // H빔 수량은 BOM에서 별도로 관리 — 여기서는 isHBeam 플래그만 사용
-  // H빔 시공 시 오가 필수: 일일작업량 일반=45본, 암반=12본
-  if (isHBeam) {
-    const ogaDays = Math.max(1, Math.ceil(totalLen / 3 / WORK_PARAMS.오가_일일작업량_일반)); // 약 3M 간격
+  // ── 소형오가 (VBA line 536-565: H빔 타입만) ──
+  // 대수 = ceil(hbeamQty / 일일작업량_일반=45)
+  if (isHBeam && hbeamQty > 0) {
+    const ogaDays = Math.max(1, Math.ceil(hbeamQty / WORK_PARAMS.오가_일일작업량_일반));
     const ogaPrice = EQUIP_PRICE.소형오가.day;
     items.push({ name: '소형오가', qty: ogaDays, price: ogaPrice, amount: ogaDays * ogaPrice });
   }
 
-  // ── H빔 + 바이백: 장비비 ×2 (해체 시 H빔을 잡아줘야 함) ──
-  if (isHBeam && isBB) {
-    const installTotal = items.reduce((s, it) => s + it.amount, 0);
-    items.push({ name: '해체장비(BB)', qty: 1, price: installTotal, amount: installTotal });
+  // ── 해체장비 (VBA line 585-597: H빔 + 바이백) ──
+  // 대수 = ceil(hbeamQty / 60) — 60본당 1대
+  if (isHBeam && isBB && hbeamQty > 0) {
+    const demoCnt = Math.ceil(hbeamQty / 60);
+    const demoPrice = EQUIP_PRICE.굴착기.day; // VBA: GetEquipPrice("굴착기(하루)")
+    items.push({ name: '해체장비(BB)', qty: demoCnt, price: demoPrice, amount: demoCnt * demoPrice });
   }
 
   const total = items.reduce((s, it) => s + it.amount, 0);
@@ -854,12 +861,13 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   // 자재비 + BB차감 (★ v3: 파이프=규격별 단가, 클램프=고재/신재 구분)
   const cg = getPriceGrade('clamp', input.asset); // 클램프 단가 등급
-  // H빔: 주주파이프 대신 H빔, 지주파이프=0 (VBA modStructural line 845-872)
-  const hbeamPrice = design.isHBeam ? Math.round((50 * (input.h + 1.5) * (input.asset.includes('신재') ? 1200 : 800)) / 100) * 100 : 0;
+  // ★ H빔 단가: 1,100원/M × 빔길이 (VBA DB_자재단가표 확정, 신재=고재 동일)
+  const hbeamLen = input.h + (design.gichoLength || 2);  // 판넬높이 + 근입깊이
+  const hbeamUnitPrice = design.isHBeam ? 1100 * hbeamLen : 0;
   const items = [
     { name: input.panel, qty: bom.panelQty, price: getPanelPrice(input.panel, pg, input.h), bbGrade: bbPG, bbKey: input.panel },
     ...(design.isHBeam
-      ? [{ name: 'H빔', qty: bom.juju, price: hbeamPrice, bbGrade: bbPiG, bbKey: '주주파이프' }]
+      ? [{ name: 'H빔', qty: bom.juju, price: Math.round(hbeamUnitPrice), bbGrade: pig, bbKey: 'H빔' }]
       : [{ name: '주주파이프', qty: bom.juju, price: getPipePrice('주주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '주주파이프' }]
     ),
     { name: '횡대파이프', qty: bom.hwCnt, price: getPipePrice('횡대파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '횡대파이프' },
@@ -885,7 +893,8 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
   }
 
   // ── 장비비 (엑셀 modCalcEngine 로직) ──
-  const eqp = calcEquipment(input.h, input.panel, L, bom.gichoQty, design.isHBeam, isBB);
+  const hbeamQty = design.isHBeam ? bom.juju : 0;
+  const eqp = calcEquipment(input.h, input.panel, L, bom.gichoQty, design.isHBeam, isBB, hbeamQty);
   const eqpTotal = eqp.total;
 
   const labor = calcLabor(L, input.h, input.panel, design.span, isBB, dustH, design.isHBeam);
