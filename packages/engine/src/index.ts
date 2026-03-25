@@ -361,6 +361,7 @@ export interface Design {
   mode:'실전형'|'구조형'|'표준형'; span:number; jiju:string; bojo:string;
   hwangdae:number; found:'기초파이프'|'앵커볼트'|'H빔 기초'; gichoLength:number|null;
   structType:string; isStd:boolean; isHBeam:boolean;
+  postSpec:string; // H빔 규격 (예: 'H-148×100') 또는 'P48.6'
 }
 
 export function makeDesign(h: number, floor: string, panel: string, std: boolean, dustN: number = 0, constructionType?: '자동' | '비계식' | 'H빔식'): Design {
@@ -378,6 +379,7 @@ export function makeDesign(h: number, floor: string, panel: string, std: boolean
     gichoLength: isHB ? gl : gl,  // H빔도 근입깊이 존재 (CalcStructSpec에서 계산)
     structType: st, isStd: std,
     isHBeam: isHB,
+    postSpec: isHB ? (h <= 6 ? 'H-148×100' : h <= 8 ? 'H-194×150' : 'H-250×125') : 'P48.6',
   };
 }
 
@@ -864,9 +866,17 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
 
   // 자재비 + BB차감 (★ v3: 파이프=규격별 단가, 클램프=고재/신재 구분)
   const cg = getPriceGrade('clamp', input.asset); // 클램프 단가 등급
-  // ★ H빔 단가: 1,100원/M × 빔길이 (VBA DB_자재단가표 확정, 신재=고재 동일)
+  // ★ H빔 단가: 무게(kg/m) × 길이(M) × 1,100원/kg (VBA DB_자재단가표 확정)
+  // H빔 무게 DB (kg/m) — 엑셀 통합데이터 확정
+  const HBEAM_WEIGHT: Record<string, number> = {
+    'H-148×100': 21.1, 'H-150×150': 31.5, 'H-175×90': 18.1,
+    'H-175×175': 40.2, 'H-194×150': 30.6, 'H-200×100': 21.3,
+    'H-200×200': 49.9, 'H-200×204': 56.2, 'H-244×175': 44.1,
+    'H-250×125': 29.6, 'H-250×250': 72.4,
+  };
   const hbeamLen = input.h + (design.gichoLength || 2);  // 판넬높이 + 근입깊이
-  const hbeamUnitPrice = design.isHBeam ? 1100 * hbeamLen : 0;
+  const hbeamWt = HBEAM_WEIGHT[design.postSpec] || 21.1;  // fallback: H-148×100
+  const hbeamUnitPrice = design.isHBeam ? Math.round(hbeamWt * hbeamLen * 1100) : 0;
   const items = [
     { name: input.panel, qty: bom.panelQty, price: getPanelPrice(input.panel, pg, input.h), bbGrade: bbPG, bbKey: input.panel },
     ...(design.isHBeam
