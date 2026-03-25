@@ -334,14 +334,17 @@ export function getFinalHwangdae(h: number, panel: string, isStd: boolean, dustN
 }
 
 // ══════════════════════════════════════════
-// 기초파이프 길이 (v2.1 확장 테이블)
+// 기초파이프 길이
+// ★ H≤7M: 2.0M 고정 (확정), H≥8M: 구조 계산식 (CalcStructSpec embedDepth)
 // ══════════════════════════════════════════
 export function getGichoLength(h: number, isStd: boolean, floor: string): number | null {
   if (floor === '콘크리트') return null;
-  const base: Record<number,number> = {1:1.5,2:1.5,3:1.5,4:1.5,5:2.0,6:2.0,7:2.5,8:3.0,9:3.0,10:3.5};
-  const std: Record<number,number> = {1:1.5,2:1.5,3:2.0,4:2.0,5:2.5,6:3.0,7:3.0,8:3.5,9:3.5,10:4.0};
-  const table = isStd ? std : base;
-  return table[Math.floor(h)] ?? 2.0;
+  if (h <= 7) return 2.0;
+  // H≥8M: 구조 계산식 기반 — 높이별 보수적 기본값
+  const over8: Record<number,number> = {8:3.0,9:3.5,10:4.0};
+  const over8std: Record<number,number> = {8:3.5,9:3.5,10:4.0};
+  const table = isStd ? over8std : over8;
+  return table[Math.floor(h)] ?? 3.0;
 }
 
 export function getStructType(h: number): string {
