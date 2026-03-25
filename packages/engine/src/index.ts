@@ -834,6 +834,7 @@ export interface EstimateResult {
   transDetail: TransportDetail;
   eqpDetail: EquipDetail;
   bom: any; laborDetail: any; design: any;
+  items: { name: string; qty: number; price: number; amount: number; bbGrade: string; bbDeduct: number; spec: string }[];
 }
 
 export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts): EstimateResult {
@@ -927,6 +928,16 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     transDetail: trans,
     eqpDetail: eqp,
     bom, laborDetail: labor, design,
+    // 자재 품목별 상세 (엑셀 내역서용)
+    items: items.map(it => ({
+      name: it.name, qty: it.qty, price: it.price,
+      amount: it.qty * it.price,
+      bbGrade: it.bbGrade,
+      bbDeduct: isBB && opts.bbMonths > 0 && it.bbKey
+        ? Math.round(it.qty * it.price * calcBBDeductRate(it.bbKey, it.bbGrade, opts.bbMonths))
+        : 0,
+      spec: '',
+    })),
   };
 }
 
