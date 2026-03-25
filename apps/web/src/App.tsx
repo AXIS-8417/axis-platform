@@ -8,6 +8,7 @@ import Register from './pages/auth/Register';
 import NewQuote from './pages/quote/NewQuote';
 import Matrix from './pages/quote/Matrix';
 import Premium from './pages/quote/Premium';
+import AdminReport from './pages/admin/AdminReport';
 import LevelSelect from './pages/quote/LevelSelect';
 import Sent from './pages/quote/Sent';
 import Compare from './pages/quote/Compare';
@@ -80,6 +81,9 @@ export default function App() {
         <Route path="/contractor/respond/:id" element={<SimpleRespond />} />
         <Route path="/contractor/respond/simple/:id" element={<SimpleRespond />} />
         <Route path="/contractor/respond/detail/:id" element={<DetailRespond />} />
+
+        {/* 관리자 */}
+        <Route path="/admin/report" element={<AdminReport />} />
 
         {/* 기타 */}
         <Route path="/dashboard" element={<Dashboard />} />
