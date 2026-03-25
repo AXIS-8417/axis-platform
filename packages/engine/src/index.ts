@@ -1022,5 +1022,5 @@ export { checkPendingNotifications, getDashboardColor, GAP_NOTIFICATIONS, EUL_NO
 // ══════════════════════════════════════════
 // 구조형(구조참고견적) 엔진 — v2.0
 // ══════════════════════════════════════════
-export { CalcStructSpec, generateStructComment, generateStructBOM, calcStructLabor, getJudgeThreshold, getGrade, JUDGE_RULES, STRUCT_DISCLAIMER, type StructSpecInput, type StructSpecResult, type StructBOMItem, type LaborResult as StructLaborResult } from './structSpec';
+export { CalcStructSpec, generateStructComment, generateStructBOM, calcStructLabor, getJudgeThreshold, getGrade, JUDGE_RULES, STRUCT_DISCLAIMER, calcScaffoldStress, calcHBeamStress, calcMinEmbed, PIPE, HBEAM, type StructSpecInput, type StructSpecResult, type StructBOMItem, type LaborResult as StructLaborResult } from './structSpec';
 export { lookupWindSpeed, WIND_DB, type WindData } from './wind';

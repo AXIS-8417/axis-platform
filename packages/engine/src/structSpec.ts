@@ -51,7 +51,7 @@ const D_FOUND_PIPE = 0.3;      // 항타+지반다짐 등가직경 경험값 (VB
 // H빔 D_found = flangeB / 2000 (규격별 다름, calcMinEmbed에서 동적 계산)
 
 // 비계파이프 제원 (P48.6×2.3T, SGT275) — DB_단면물성 확정
-const PIPE = {
+export const PIPE = {
   D: 48.6, t: 2.3, A: 334.5,
   I: 89867,            // 단면2차모멘트 (mm⁴)
   Z: 3698,             // 단면계수 (mm³)
@@ -64,7 +64,7 @@ const PIPE = {
 // H빔 물성 DB — 실제 사용하는 11종 (통합데이터 Z값 기준)
 // 자동선정은 DB_높이규격매핑(HEIGHT_MAP)이 담당, 물성 조회는 여기서
 // SS400 Fy=235MPa, fba=156MPa(가설할증), tauA=94MPa
-const HBEAM: Record<string, { Z: number; A: number; Aw: number; fba: number }> = {
+export const HBEAM: Record<string, { Z: number; A: number; Aw: number; fba: number }> = {
   'H-148×100':  { Z: 138000, A: 2684, Aw: 780,  fba: 156 },
   'H-150×150':  { Z: 219000, A: 4014, Aw: 910,  fba: 156 },
   'H-175×90':   { Z: 143000, A: 2304, Aw: 795,  fba: 156 },
@@ -164,7 +164,7 @@ export function getGrade(maxRatio: number, warnCount: number, ngCount: number): 
 
 // ─── 응력비 계산: 비계식 ─────────────────────────────────────
 // M=wH²/2(캔틸레버)×K_dist — v1.0의 wH²/8(단순보)에서 수정
-function calcScaffoldStress(
+export function calcScaffoldStress(
   totalH: number, panelH: number, dustH: number,
   span: number, pf: number, K_dist: number
 ): number {
@@ -179,7 +179,7 @@ function calcScaffoldStress(
 }
 
 // ─── 응력비 계산: H빔식 ─────────────────────────────────────
-function calcHBeamStress(
+export function calcHBeamStress(
   totalH: number, panelH: number, dustH: number,
   pf: number, span: number, postSpec: string
 ): number {
@@ -199,7 +199,7 @@ function calcHBeamStress(
 
 // ─── 전도 안전율 (기초파이프) ────────────────────────────────
 // D_FOUND=0.0486(파이프)/0.45(H빔) — v1.0의 0.3에서 수정
-function calcMinEmbed(
+export function calcMinEmbed(
   totalH: number, panelH: number, dustH: number,
   span: number, pf: number, phi: number, D: number,
 ): { depth: number; Fs: number } {

@@ -7,6 +7,7 @@ import {
   makeDesign, calcEstimate, getDustTier,
   REGION_DB as ENGINE_REGION_DB,
   CalcStructSpec, generateStructComment,
+  calcScaffoldStress, calcHBeamStress, calcMinEmbed, PIPE, HBEAM,
   type QuoteInput, type CalcOpts, type StructSpecInput,
 } from '@axis/engine';
 
@@ -44,32 +45,64 @@ function calcStructure(
   try {
     const spec = CalcStructSpec(sInput);
     const b = spec.basis;
-
-    // CalcStructSpec 결과를 직접 사용 (이전: 임의 재계산으로 오류 발생)
-    const stressRatio = b.stressRatio;
-    const horiRatio = b.horiStressRatio;
-    const fsVal = b.Fs;
-
-    // BK_03: 말뚝 축력 검토 (VBA: P_axial / (2 * phi_Pn))
-    const pf_N = b.pf_kN * 1000;
     const totalH = h + dustH;
-    const P_axial = pf_N * span * totalH * 0.5;  // kN→N 축력근사
-    const phi_Pn = 0.85 * 235 * 334.5;            // φPn = φ×Fy×A (파이프)
-    const axialRatio = spec.structType === 'H빔식' ? 0 : P_axial / (2 * phi_Pn);
+    const pf = b.pf_kN;
+    const isHBeam = spec.structType === 'H빔식';
+
+    // ★ 핵심: CalcStructSpec의 자체 span이 아닌, 전달받은 span/embedM으로 재계산
+    // (실전형 span=3M vs 구조형 span=2M 등 차이를 반영)
+    const stressRatio = isHBeam
+      ? calcHBeamStress(totalH, h, dustH, pf, span, spec.postSpec)
+      : calcScaffoldStress(totalH, h, dustH, span, pf, b.K_dist);
+
+    // 횡대 응력비도 전달받은 span 기준으로 재계산
+    const horiTier = spec.horiTier;
+    const burden = h / Math.max(1, horiTier - 1);
+    const W_wind = pf * 1000 * burden;
+    const W_dead = 300 * burden;
+    const M_h = Math.sqrt((W_dead * span * span / 10) ** 2 + (W_wind * span * span / 10) ** 2);
+    const horiRatio = (M_h * 1000 / PIPE.Z) / PIPE.fba;
+
+    // 전도안전율도 전달받은 embedM 기준으로 재계산
+    let fsVal = 999;
+    if (embedM > 0) {
+      let D_found: number;
+      if (isHBeam) {
+        const bMatch = spec.postSpec.match(/×(\d+)/);
+        D_found = bMatch ? parseInt(bMatch[1]) / 2000 : 0.05;
+      } else {
+        D_found = 0.3; // VBA: 항타+지반다짐 등가직경
+      }
+      const embedResult = calcMinEmbed(totalH, h, dustH, span, pf, 30, D_found);
+      // Fs at the given embedM (not at optimal embed)
+      const phi = 30;
+      const Kp = Math.tan((45 + phi / 2) * Math.PI / 180) ** 2;
+      const H_eff = totalH;
+      const Mo = pf * span * H_eff * (embedM + H_eff / 2);
+      const Pp = 0.5 * 18 * Kp * embedM * embedM * (2 * D_found);
+      const Mr = Pp * embedM / 3;
+      fsVal = Mo > 0 ? Mr / Mo : 999;
+    }
+
+    // BK_03: 말뚝 축력 검토
+    const pf_N = pf * 1000;
+    const P_axial = pf_N * span * totalH * 0.5;
+    const phi_Pn = 0.85 * 235 * 334.5;
+    const axialRatio = isHBeam ? 0 : P_axial / (2 * phi_Pn);
 
     const grade = (v: number, lo: number, hi: number) => v >= hi ? 'NG' : v >= lo ? 'WARN' : 'PASS';
     const checks = [
       { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5 },
-      { name: spec.structType === 'H빔식' ? 'BK_02 H빔 응력비' : 'BK_02 지주 응력비',
+      { name: isHBeam ? 'BK_02 H빔 응력비' : 'BK_02 지주 응력비',
         val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.75, 0.90), max: 1.2 },
       { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.75, 0.90), max: 1.2 },
-      { name: 'BK_04 인발 안전율', val: +(fsVal < 900 ? fsVal : spec.embedDepth > 0 ? fsVal : 999).toFixed(1),
+      { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1),
         status: fsVal >= 3.0 ? 'PASS' : fsVal >= 1.5 ? 'WARN' : 'NG', max: 4.0 },
     ];
     const ngCount = checks.filter(c => c.status === 'NG').length;
     const warnCount = checks.filter(c => c.status === 'WARN').length;
     const overall = ngCount >= 1 ? 'F(부적합)' : warnCount >= 2 ? 'D(위험경계)' : warnCount === 1 ? 'C(경계)' : 'A(안전)';
-    return { checks, overall, basis: spec.basis };
+    return { checks, overall, basis: { ...b, stressRatio, horiStressRatio: horiRatio, Fs: fsVal, pf_kN: pf } };
   } catch {
     return { checks: [], overall: '계산 불가', basis: null };
   }
