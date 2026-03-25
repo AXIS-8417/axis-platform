@@ -317,6 +317,22 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
   let horiStressRatio = 0;
   if (structType === 'H빔식') {
     horiTier = Math.max(3, Math.ceil(totalH * 0.8));
+    // H빔도 횡대 응력비 계산 (횡대는 파이프이므로 동일 로직)
+    const hBurden = input.height / Math.max(1, horiTier - 1);
+    const hW_wind = pf * 1000 * hBurden;
+    const hW_dead = 300 * hBurden;
+    const hM = Math.sqrt(
+      (hW_dead * span * span / 10) ** 2 +
+      (hW_wind * span * span / 10) ** 2
+    );
+    horiStressRatio = (hM * 1000 / PIPE.Z) / PIPE.fba;
+    while (horiStressRatio > 1.0 && horiTier < 10) {
+      horiTier++;
+      const nb = input.height / Math.max(1, horiTier - 1);
+      const nw = pf * 1000 * nb;
+      const nm = Math.sqrt((300 * nb * span * span / 10) ** 2 + (nw * span * span / 10) ** 2);
+      horiStressRatio = (nm * 1000 / PIPE.Z) / PIPE.fba;
+    }
   } else {
     const panelH = input.height;
     horiTier = Math.ceil(panelH / 1.2) + 1;
@@ -373,7 +389,7 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
   }
 
   // STEP 9: 지주 비율
-  const jijuRatio = structType === 'H빔식' ? 'N/A' : '1:1';
+  const jijuRatio = structType === 'H빔식' ? 'H빔 자립' : '1:1';
 
   // STEP 10: 신뢰도
   const confidence = totalH >= 8 ? '±25%추정' : '엔진계산';

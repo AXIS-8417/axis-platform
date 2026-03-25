@@ -19,7 +19,12 @@ const REGION_DB: Record<string, {Vo:number}> = {
 function fmt(n: number) { return n?.toLocaleString('ko-KR') ?? '-'; }
 
 // 구조판정 계산 — v76.5 엔진 기반
-function calcStructure(h: number, panel: string, address: string, span: number, embedM: number) {
+function calcStructure(
+  h: number, panel: string, address: string,
+  span: number, embedM: number,
+  constructionType?: '자동' | '비계식' | 'H빔식',
+  dustH = 0, dustN = 0,
+) {
   // 주소에서 시도/시군구 추출
   const sido = address.includes('서울') ? '서울특별시'
     : address.includes('부산') ? '부산광역시' : address.includes('인천') ? '인천광역시'
@@ -31,33 +36,42 @@ function calcStructure(h: number, panel: string, address: string, span: number, 
   const sInput: StructSpecInput = {
     location: { sido, sigungu },
     panel: panel === 'RPP' ? 'RPP방음판' : panel === 'EGI' ? 'EGI휀스' : '스틸방음판',
-    height: h, dustH: 0, dustN: 0, length: 100,
+    height: h, dustH, dustN, length: 100,
     foundation: '기초파이프',
+    constructionType,
   };
 
   try {
     const spec = CalcStructSpec(sInput);
     const b = spec.basis;
 
-    // 입력된 span/embedM 기준으로 실제 응력비 재계산
-    const ratio = b.stressRatio * (span / spec.span); // 경간에 비례
+    // CalcStructSpec 결과를 직접 사용 (이전: 임의 재계산으로 오류 발생)
+    const stressRatio = b.stressRatio;
     const horiRatio = b.horiStressRatio;
-    const embedRatio = embedM > 0 ? b.pf_kN * h / (embedM * embedM * 0.5) * 0.01 : 0;
-    const fsVal = embedM >= 2.0 ? b.Fs : Math.max(1.0, b.Fs * 0.7);
+    const fsVal = b.Fs;
+
+    // BK_03: 말뚝 축력 검토 (VBA: P_axial / (2 * phi_Pn))
+    const pf_N = b.pf_kN * 1000;
+    const totalH = h + dustH;
+    const P_axial = pf_N * span * totalH * 0.5;  // kN→N 축력근사
+    const phi_Pn = 0.85 * 235 * 334.5;            // φPn = φ×Fy×A (파이프)
+    const axialRatio = spec.structType === 'H빔식' ? 0 : P_axial / (2 * phi_Pn);
 
     const grade = (v: number, lo: number, hi: number) => v >= hi ? 'NG' : v >= lo ? 'WARN' : 'PASS';
     const checks = [
       { name: 'BK_01 횡대 합성응력', val: +horiRatio.toFixed(3), status: grade(horiRatio, 0.85, 1.0), max: 1.5 },
-      { name: 'BK_02 지주 응력비', val: +ratio.toFixed(3), status: grade(ratio, 0.75, 0.90), max: 1.2 },
-      { name: 'BK_03 말뚝 응력비', val: +embedRatio.toFixed(3), status: grade(embedRatio, 0.75, 0.90), max: 1.2 },
-      { name: 'BK_04 인발 안전율', val: +fsVal.toFixed(1), status: fsVal >= 3.0 ? 'PASS' : fsVal >= 1.5 ? 'WARN' : 'NG', max: 4.0 },
+      { name: spec.structType === 'H빔식' ? 'BK_02 H빔 응력비' : 'BK_02 지주 응력비',
+        val: +stressRatio.toFixed(3), status: grade(stressRatio, 0.75, 0.90), max: 1.2 },
+      { name: 'BK_03 말뚝 응력비', val: +axialRatio.toFixed(3), status: grade(axialRatio, 0.75, 0.90), max: 1.2 },
+      { name: 'BK_04 인발 안전율', val: +(fsVal < 900 ? fsVal : spec.embedDepth > 0 ? fsVal : 999).toFixed(1),
+        status: fsVal >= 3.0 ? 'PASS' : fsVal >= 1.5 ? 'WARN' : 'NG', max: 4.0 },
     ];
     const ngCount = checks.filter(c => c.status === 'NG').length;
     const warnCount = checks.filter(c => c.status === 'WARN').length;
     const overall = ngCount >= 1 ? 'F(부적합)' : warnCount >= 2 ? 'D(위험경계)' : warnCount === 1 ? 'C(경계)' : 'A(안전)';
-    return { checks, overall };
+    return { checks, overall, basis: spec.basis };
   } catch {
-    return { checks: [], overall: '계산 불가' };
+    return { checks: [], overall: '계산 불가', basis: null };
   }
 }
 
@@ -117,8 +131,11 @@ export default function Premium() {
   const regionData = REGION_DB[region] || { Vo: 26 };
 
   const addr = store.address || '';
-  const structP = practical?.design ? calcStructure(h, panel, addr, practical.design.span, practical.design.gichoLength ?? 1.5) : null;
-  const structS = standard?.design ? calcStructure(h, panel, addr, standard.design.span, standard.design.gichoLength ?? 2.0) : null;
+  const cType = store.constructionType as '자동' | '비계식' | 'H빔식' | undefined;
+  const dH = store.dustH || 0;
+  const dN = getDustTier(dH);
+  const structP = practical?.design ? calcStructure(h, panel, addr, practical.design.span, practical.design.gichoLength ?? 1.5, cType, dH, dN) : null;
+  const structS = standard?.design ? calcStructure(h, panel, addr, standard.design.span, standard.design.gichoLength ?? 2.0, cType, dH, dN) : null;
   const envP = practical?.design ? calcEnvironment(panel, h, '실전형', practical.design.found, practical.design.gichoLength ?? 1.5) : null;
   const envS = standard?.design ? calcEnvironment(panel, h, '구조형', standard.design.found, standard.design.gichoLength ?? 2.0) : null;
 
@@ -288,21 +305,68 @@ export default function Premium() {
               </tbody>
             </table>
           )}
-          {tab === 'struct' && structP && structS && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[{title:'실전형',data:structP,color:'#2563eb'},{title:'구조형',data:structS,color:'#d97706'}].map(({title,data,color})=>(
-                <div key={title}>
-                  <h4 className="font-mono font-bold mb-3" style={{color}}>{title} — {data.overall}</h4>
-                  {data.checks.map((ck: any)=>(
-                    <div key={ck.name} className="mb-3">
-                      <div className="flex justify-between text-xs mb-1"><span>{ck.name}</span><span className={statusColor(ck.status)}>{ck.val.toFixed(3)} {ck.status}</span></div>
-                      <div className="h-2 bg-[#e5e7eb] rounded"><div className={`h-2 rounded ${barColor(ck.status)}`} style={{width:`${Math.min(100,ck.val/ck.max*100)}%`}}/></div>
+          {tab === 'struct' && structP && structS && (() => {
+            const pD = practical.design;
+            const sD = standard.design;
+            const wind = (structS?.basis || {}) as any;
+            const isBK05 = h >= 6 && pD?.structType !== 'H빔식';
+            // 스펙 차이 요약
+            const diffs: string[] = [];
+            if (pD.span !== sD.span) diffs.push(`경간 ${pD.span}M→${sD.span}M`);
+            if ((pD.gichoLength||0) !== (sD.gichoLength||0)) diffs.push(`기초 ${pD.gichoLength||'-'}M→${sD.gichoLength||'-'}M`);
+            if (pD.bojo !== sD.bojo) diffs.push(`보조지주 ${pD.bojo}→${sD.bojo}`);
+            if (pD.hwangdae !== sD.hwangdae) diffs.push(`횡대 ${pD.hwangdae}단→${sD.hwangdae}단`);
+
+            return (
+              <div>
+                {/* ④ 스펙 차이 요약 */}
+                {diffs.length > 0 && (
+                  <div className="bg-[#fffbeb] border border-[#fbbf24] rounded-lg p-3 mb-4 text-[12px]">
+                    <span className="font-bold text-[#92400e]">구조형 차이:</span>{' '}
+                    <span className="text-[#78350f]">{diffs.join(' · ')}</span>
+                  </div>
+                )}
+
+                {/* ① BK_05 표시 (H≥6m 비계식) */}
+                {isBK05 && (
+                  <div className="bg-[#fef2f2] border-l-[3px] border-[#ef4444] rounded-r-lg px-3 py-2 mb-4 text-[12px] text-[#991b1b]">
+                    <span className="font-bold">BK_05</span> 비계 H≥6m 보조지주 필수 — 보조지주 없으면 자동 N.G. (Rmax≈8.3, 구조적 불가)
+                  </div>
+                )}
+
+                {/* 기존 바 차트 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                  {[{title:'실전형',data:structP,color:'#2563eb',design:pD},{title:'구조형',data:structS,color:'#d97706',design:sD}].map(({title,data,color,design})=>(
+                    <div key={title}>
+                      <h4 className="font-mono font-bold mb-1" style={{color}}>{title} — {data.overall}</h4>
+                      {/* ② 근거 한 줄 */}
+                      <p className="text-[11px] text-[#64748b] mb-3">
+                        풍속 {wind.Vo || 28}m/s | 풍압 {wind.pf_kN?.toFixed(2) || '0.31'}kN/m² | 경간 {design.span}M | 기초 {design.gichoLength || '-'}M
+                      </p>
+                      {data.checks.map((ck: any)=>(
+                        <div key={ck.name} className="mb-3">
+                          <div className="flex justify-between text-xs mb-1"><span>{ck.name}</span><span className={statusColor(ck.status)}>{ck.val.toFixed(3)} {ck.status}</span></div>
+                          <div className="h-2 bg-[#e5e7eb] rounded"><div className={`h-2 rounded ${barColor(ck.status)}`} style={{width:`${Math.min(100,ck.val/ck.max*100)}%`}}/></div>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-              ))}
-            </div>
-          )}
+
+                {/* ③ 면책 문구 (접힘) */}
+                <details className="text-[11px] text-[#94a3b8] border-t border-[#e5e7eb] pt-2">
+                  <summary className="cursor-pointer hover:text-[#64748b]">구조 면책 안내</summary>
+                  <p className="mt-2 leading-5">
+                    ※ 본 견적의 구조 조건은 AXIS 엔진이 현장 풍속·높이 기반으로 산출한 참고값이며,
+                    법적 구조검토서를 대체하지 않습니다.
+                    풍하중 계수(Kzr=0.81, Kzt=1.0, Iw=0.6, ρ=1.25)는 표준값을 적용하였고,
+                    지반 조건은 표준값(SPT=15, φ=30°)을 가정하였으며,
+                    실제 시공 시 현장 여건에 따라 전문 구조기술사의 검토를 받으시기 바랍니다.
+                  </p>
+                </details>
+              </div>
+            );
+          })()}
           {tab === 'env' && envP && envS && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[{title:'실전형',data:envP,color:'#2563eb'},{title:'구조형',data:envS,color:'#d97706'}].map(({title,data,color})=>(
