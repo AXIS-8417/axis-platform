@@ -422,7 +422,7 @@ export function generateStructComment(input: StructSpecInput, spec: StructSpecRe
   comments.push(`노풍도: B (Kzr=${b.Kzr}, Kzt=${b.Kzt})`);
   comments.push(`설계풍압: ${b.pf_kN.toFixed(2)} kN/m² (Iw=${b.Iw}, ρ=${b.rho}, Cf=${b.Cf})`);
   comments.push(`구조타입: ${spec.structType} (${spec.postSpec})`);
-  comments.push(`경간: ${spec.span}M (지주응력비 ${b.stressRatio.toFixed(2)})`);
+  comments.push(`경간: 2M (구조검토상 ${spec.span}M까지 가능, 응력비 ${b.stressRatio.toFixed(2)})`);
 
   if (spec.embedDepth > 0) {
     comments.push(`기초파이프: ${spec.embedTotal}M (근입${spec.embedDepth}M+노출${spec.embedExposed}M)`);

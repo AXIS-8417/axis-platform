@@ -201,17 +201,17 @@ export default function Matrix() {
               <div className="bg-[#f0f9ff] rounded-lg p-3 border border-[#bae6fd]">
                 <div className="text-[11px] text-[#0369a1] font-semibold mb-1">■ 실전형</div>
                 <div className="text-[12px] space-y-0.5">
-                  <div>경간: <strong>3.0M</strong></div>
+                  <div>경간: <strong>{design.span || 3.0}M</strong></div>
                   <div>횡대: <strong>{design.hwangdae || '-'}단</strong></div>
                   <div>기초: <strong>{design.gichoLength || 1.5}M</strong></div>
-                  <div>지주: <strong>1:1</strong></div>
+                  <div>지주: <strong>{design.isHBeam ? 'H빔 자립' : (design.jiju || '1:1')}</strong></div>
                 </div>
               </div>
               <div className="bg-[#faf5ff] rounded-lg p-3 border border-[#d8b4fe]">
                 <div className="text-[11px] text-[#7c3aed] font-semibold mb-1">■ 구조형</div>
                 <div className="text-[12px] space-y-0.5">
-                  <div>경간: <strong className={structSpec.span < 3 ? 'text-[#dc2626]' : ''}>{structSpec.span}M</strong>
-                    {structSpec.span < 3 && <span className="text-[10px] text-[#dc2626] ml-1">(풍속 {structSpec.basis.Vo}m/s)</span>}
+                  <div>경간: <strong className="text-[#dc2626]">2.0M</strong>
+                    <span className="text-[10px] text-[#64748b] ml-1">(구조검토상 {structSpec.span}M까지 가능)</span>
                   </div>
                   <div>횡대: <strong>{structSpec.horiTier}단</strong>
                     <span className="text-[10px] text-[#64748b] ml-1">(응력비 {structSpec.basis.horiStressRatio.toFixed(2)})</span>
