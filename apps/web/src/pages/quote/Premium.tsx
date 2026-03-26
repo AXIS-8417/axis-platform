@@ -400,15 +400,20 @@ export default function Premium() {
               <tbody>
                 {(() => {
                   const isHBeam = practical.design.structType?.includes('H빔') || standard.design.structType?.includes('H빔');
+                  // ★ 구조형은 CalcStructSpec 결과 우선 (structS.basis에서 직접)
+                  const sBasis = (structS as any)?.basis;
+                  const sSpan = sBasis?.span ?? standard.design.span;
+                  const sGicho = sBasis?.embedTotal ?? standard.design.gichoLength ?? '-';
+                  const sHori = sBasis?.horiTier ?? standard.design.hwangdae;
                   const rows: [string,string,string][] = [
-                    ['경간', practical.design.span+'M', standard.design.span+'M'],
+                    ['경간', practical.design.span+'M', sSpan+'M'],
                     ...(!isHBeam ? [
                       ['지주간격', practical.design.jiju, standard.design.jiju] as [string,string,string],
                       ['보조지주', practical.design.bojo, standard.design.bojo] as [string,string,string],
                     ] : []),
-                    ['횡대', practical.design.hwangdae+'단', standard.design.hwangdae+'단'],
+                    ['횡대', practical.design.hwangdae+'단', sHori+'단'],
                     ['기초', practical.design.found, standard.design.found],
-                    ['기초파이프', (practical.design.gichoLength??'-')+'M', (standard.design.gichoLength??'-')+'M'],
+                    ['기초파이프', (practical.design.gichoLength??'-')+'M', sGicho+'M'],
                     ['구조타입', practical.design.structType, standard.design.structType],
                     ...(isHBeam ? [
                       ['지주파이프', '없음 (H빔 대체)', '없음 (H빔 대체)'] as [string,string,string],
