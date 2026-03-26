@@ -112,24 +112,23 @@ export default function Matrix() {
       // 구조형 계산 (풍속 DB 기반)
       try {
         const addr = store.address || '';
-        const sido = addr.includes('서울') ? '서울특별시'
-          : addr.includes('부산') ? '부산광역시'
-          : addr.includes('인천') ? '인천광역시'
-          : addr.includes('대구') ? '대구광역시'
-          : addr.includes('대전') ? '대전광역시'
-          : addr.includes('광주') ? '광주광역시'
-          : addr.includes('울산') ? '울산광역시'
-          : addr.includes('세종') ? '세종특별자치시'
-          : addr.includes('제주') ? '제주특별자치도'
-          : addr.includes('경기') ? '경기도'
-          : addr.includes('강원') ? '강원도'
-          : '서울특별시';
+        // ★ BUG-04 FIX: 17개 시도 전체 매핑
+        const SIDO_MAP: [RegExp, string][] = [
+          [/서울/, '서울특별시'], [/부산/, '부산광역시'], [/인천/, '인천광역시'],
+          [/대구/, '대구광역시'], [/대전/, '대전광역시'], [/광주/, '광주광역시'],
+          [/울산/, '울산광역시'], [/세종/, '세종특별자치시'], [/제주/, '제주특별자치도'],
+          [/강원/, '강원특별자치도'], [/경기/, '경기도'],
+          [/충북|충청북/, '충청북도'], [/충남|충청남/, '충청남도'],
+          [/전북|전라북/, '전라북도'], [/전남|전라남/, '전라남도'],
+          [/경북|경상북/, '경상북도'], [/경남|경상남/, '경상남도'],
+        ];
+        const sido = SIDO_MAP.find(([re]) => re.test(addr))?.[1] ?? '경기도';
         const sigungu = addr.replace(/.*?(시|도)\s*/, '').replace(/(구|군|시).*/, '$1') || '';
         const sInput: StructSpecInput = {
           location: { sido, sigungu },
           panel: panel === 'RPP' ? 'RPP방음판' : panel === 'EGI' ? 'EGI휀스' : '스틸방음판',
           height: h, dustH: store.dustH || 0, dustN: (store.dustH || 0) > 0 ? Math.ceil((store.dustH || 0) / 1.5) : 0,
-          length: len, foundation: store.floorType || '기초파이프',
+          length: len, foundation: (store.floorType === '콘크리트' ? '콘크리트' : '기초파이프'),
           constructionType: store.constructionType || '자동',
         };
         const spec = CalcStructSpec(sInput);
@@ -210,8 +209,8 @@ export default function Matrix() {
               <div className="bg-[#faf5ff] rounded-lg p-3 border border-[#d8b4fe]">
                 <div className="text-[11px] text-[#7c3aed] font-semibold mb-1">■ 구조형</div>
                 <div className="text-[12px] space-y-0.5">
-                  <div>경간: <strong className="text-[#dc2626]">2.0M</strong>
-                    <span className="text-[10px] text-[#64748b] ml-1">(구조검토상 {structSpec.span}M까지 가능)</span>
+                  <div>경간: <strong className="text-[#dc2626]">{structSpec.span}M</strong>
+                    {structSpec.span < 3.0 && <span className="text-[10px] text-[#64748b] ml-1">(엔진 권장, 최대 3M)</span>}
                   </div>
                   <div>횡대: <strong>{structSpec.horiTier}단</strong>
                     <span className="text-[10px] text-[#64748b] ml-1">(응력비 {structSpec.basis.horiStressRatio.toFixed(2)})</span>
