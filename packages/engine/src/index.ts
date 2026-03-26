@@ -431,7 +431,11 @@ export function calcBOM(len: number, h: number, panel: string, design: Design, d
   let specialName = ''; let specialQty = 0; let specialPrice = 0;
   if (panel === '스틸') { specialName = 'H-BAR'; specialQty = (juju-1)+2; specialPrice = 0; }
   else if (panel === 'RPP') { specialName = '양개조이너'; specialQty = (hwN + 1) * panelQty; specialPrice = MISC_PRICE.양개조이너; }
-  else if (panel === 'EGI') { specialName = '후크볼트'; specialQty = panelQty * hwN * 2; specialPrice = MISC_PRICE.후크볼트; }
+  // ★ v74 확정: EGI장수 × ((횡대단수 - 분진망단수) × 2)
+  else if (panel === 'EGI') {
+    const dustTier = getDustTier(dustN);  // dustN = 분진망 높이(M)
+    specialName = '후크볼트'; specialQty = panelQty * ((hwN - dustTier) * 2); specialPrice = MISC_PRICE.후크볼트;
+  }
 
   return { juju, jiuju, hwN, hwCnt, jadong, gojung, pin, dustRolls, gichoQty, panelQty,
            specialName, specialQty, specialPrice, mainPostLength: h + dustN };
