@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuoteStore, type PanelType, type FloorType, type Region, type ConstructionType, type InstallTimeline, type Urgency } from '../../store/quoteStore';
 import Stepper from '../../components/Stepper';
 import api from '../../lib/api';
+import { getBaseHwangdae, getFinalHwangdae } from '@axis/engine';
 
 const STEPS = [
   { id: 1, label: '현장위치', icon: '📍' },
@@ -42,10 +43,10 @@ function scaleFn(l: number) {
 
 // HWP 확정표 §2.5 — 파이프타입 기준 (사용자 확인 완료 2026-03-21)
 // 6M 표준형=5단, 1~3M 표준형=실전형과 동일
-const XBAR: Record<string, Record<number, number>> = {
-  실전형: { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 7, 10: 7 },
-  표준형: { 1: 2, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 7, 8: 8, 9: 8, 10: 8 },
-};
+// ★ FIX-06: 엔진 함수에서 동적 생성 (이중관리 제거)
+function getXBAR(h: number, panel: string, std: boolean, dustN: number): number {
+  return getFinalHwangdae(h, panel, std, dustN);
+}
 
 function stType(h: number, mode: string) {
   if (h <= 3) return '비계식';
@@ -325,7 +326,7 @@ export default function NewQuote() {
                 <div className="flex flex-wrap gap-2">
                   {heightSteps.map((h) => {
                     const hRound = Math.min(10, Math.round(h));
-                    const hwDan = XBAR['실전형'][hRound] || 2;
+                    const hwDan = getXBAR(hRound, store.panelType || 'RPP', false, 0);
                     return (
                       <button key={h} onClick={() => store.setField('height', h)}
                         className={`min-w-[54px] px-2 py-2.5 border-[1.5px] rounded-lg text-center transition-all ${
@@ -344,16 +345,16 @@ export default function NewQuote() {
                   const specRows: [string, string, string][] = isHBeam
                     ? [
                         ['구조 타입', 'H빔식', '#dc2626'],
-                        ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],
-                        ['횡대(표준형)', (XBAR['표준형'][hk] || 3) + '단', '#7c3aed'],
+                        ['횡대(실전형)', (getXBAR(store.height, store.panelType || 'RPP', false, 0)) + '단', '#2563eb'],
+                        ['횡대(표준형)', (getXBAR(store.height, store.panelType || 'RPP', true, 0)) + '단', '#7c3aed'],
                         ['지주파이프', '없음 (H빔 대체)', '#94a3b8'],
                         ['보조지주', '없음 (H빔 대체)', '#94a3b8'],
                         ['H빔 기초', '양측 2본/경간', '#dc2626'],
                       ]
                     : [
                         ['구조 타입', stType(store.height, '실전형'), ''],
-                        ['횡대(실전형)', (XBAR['실전형'][hk] || 2) + '단', '#2563eb'],
-                        ['횡대(표준형)', (XBAR['표준형'][hk] || 3) + '단', '#7c3aed'],
+                        ['횡대(실전형)', (getXBAR(store.height, store.panelType || 'RPP', false, 0)) + '단', '#2563eb'],
+                        ['횡대(표준형)', (getXBAR(store.height, store.panelType || 'RPP', true, 0)) + '단', '#7c3aed'],
                         ['기초(실전형)', store.height <= 4 ? '1.5M' : store.height <= 6 ? '2.0M' : '2.5M', ''],
                         ['기초(표준형)', store.height <= 2 ? '1.5M' : store.height <= 4 ? '2.0M' : store.height <= 5 ? '2.5M' : '3.0M', ''],
                         ['구조 보정', stType(store.height, '실전형').includes('보조') ? '×2.18' : '×1.00', '#0369a1'],

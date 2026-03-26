@@ -753,7 +753,7 @@ export function calcTransport(dist: number, len: number, isBB: boolean, bomItems
 // ══════════════════════════════════════════
 export const DOOR_PRICE = {
   양개도어:   { 신재: 350000, 고재: 200000 },  // 원/M (per door leaf), H:2.4M, W:2.0~8.0M
-  홀딩도어:   { 신재: 63000, 고재: 50000 },    // 원/㎡, H:6.0M, W:6.0~12.0M
+  홀딩도어:   { 신재: 350000, 고재: 270000 },  // ★ FIX-05: 원/M(너비), H:6.0M 고정 (46번시트 확정)
   현장DIY출입문: { '2.0': 100000, '3.0': 200000, '4.0': 300000, '5.0': 400000, '6.0': 500000 } as Record<string, number>,
   // 레거시 호환
   양개_비계:  { 고재: 100000, 신재: 130000 },  // 원/M, H 2M or 3M, W ≤ 4M
@@ -765,10 +765,9 @@ export const DOOR_PRICE = {
 export function calcGate(gate: string, grade: '고재'|'신재', W: number, _h: number, mesh: boolean) {
   if (!gate || gate === '없음') return { total: 0, body: 0, meshAmt: 0, meshQty: 0 };
   if (gate === '홀딩도어') {
-    const H = 6.0; // 홀딩도어 고정높이
-    const area = W * H;
+    // ★ FIX-05: 너비 M당 단가 × 너비(M) = 총금액 (H=6.0M 고정, area 불필요)
     const unitPrice = grade === '신재' ? DOOR_PRICE.홀딩도어.신재 : DOOR_PRICE.홀딩도어.고재;
-    const b = Math.round(area * unitPrice);
+    const b = Math.round(W * unitPrice);
     const meshQty = mesh ? W : 0; // 문짝 1M당 1장
     const m = meshQty * DOOR_PRICE.수직포망;
     return { total: b + m, body: b, meshAmt: m, meshQty };

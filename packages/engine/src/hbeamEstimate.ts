@@ -241,8 +241,9 @@ export function calcHBeamBOM(
   // H빔 단가 (중량 기반)
   const matchedBeam = HBEAM_DB.find(b => b.name === hbeamResult.spec);
   const weight = matchedBeam?.weight ?? 50;
-  const pricePerKg = asset === '신재' ? 1200 : 800;
-  const hbeamUnitPrice = Math.round(weight * hbeamLen * pricePerKg / 100) * 100;
+  // ★ VBA DB_자재단가표 확정: H빔 1100원/kg (신재/고재 동일)
+  const HBEAM_PRICE_PER_KG = 1100;
+  const hbeamUnitPrice = Math.round(weight * hbeamLen * HBEAM_PRICE_PER_KG / 100) * 100;
 
   // 판넬
   const panelWidth = panelType === 'RPP' ? 0.67 : panelType === 'EGI' ? 0.55 : 1.98;
@@ -262,7 +263,10 @@ export function calcHBeamBOM(
 
   // 기초파이프: H빔은 주주수 × 2 (양쪽) — modBOM line 354-355
   const foundQty = spanCount * 2;
-  const foundLength = hbeamResult.embedDepth > 0 ? hbeamResult.embedDepth + 0.5 : 2.0;
+  // ★ 기초파이프 총길이 = 근입 + 노출 (높이별 동적)
+  // 확정: H≤4→1.0M, H≤6→1.5M, H>6→2.0M
+  const exposedLen = panelHeight <= 4 ? 1.0 : panelHeight <= 6 ? 1.5 : 2.0;
+  const foundLength = hbeamResult.embedDepth > 0 ? hbeamResult.embedDepth + exposedLen : 2.0 + exposedLen;
   const foundPrice = asset === '신재' ? 12000 : 9200;
 
   // 클램프

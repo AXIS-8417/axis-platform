@@ -27,11 +27,17 @@ function calcStructure(
   dustH = 0, dustN = 0,
 ) {
   // 주소에서 시도/시군구 추출
-  const sido = address.includes('서울') ? '서울특별시'
-    : address.includes('부산') ? '부산광역시' : address.includes('인천') ? '인천광역시'
-    : address.includes('대구') ? '대구광역시' : address.includes('대전') ? '대전광역시'
-    : address.includes('경기') ? '경기도' : address.includes('강원') ? '강원도'
-    : address.includes('제주') ? '제주특별자치도' : '서울특별시';
+  // ★ BUG-04 FIX: 17개 시도 전체 매핑 (경기도 폴백 제거)
+  const SIDO_MAP: [RegExp, string][] = [
+    [/서울/, '서울특별시'], [/부산/, '부산광역시'], [/인천/, '인천광역시'],
+    [/대구/, '대구광역시'], [/대전/, '대전광역시'], [/광주/, '광주광역시'],
+    [/울산/, '울산광역시'], [/세종/, '세종특별자치시'], [/제주/, '제주특별자치도'],
+    [/강원/, '강원특별자치도'], [/경기/, '경기도'],
+    [/충북|충청북/, '충청북도'], [/충남|충청남/, '충청남도'],
+    [/전북|전라북/, '전라북도'], [/전남|전라남/, '전라남도'],
+    [/경북|경상북/, '경상북도'], [/경남|경상남/, '경상남도'],
+  ];
+  const sido = SIDO_MAP.find(([re]) => re.test(address))?.[1] ?? '경기도';
   const sigungu = address.replace(/.*?(시|도)\s*/, '').replace(/(구|군|시).*/, '$1') || '';
 
   const sInput: StructSpecInput = {
@@ -200,14 +206,17 @@ export default function Premium() {
       // 구조형: CalcStructSpec 결과로 설계값 덮어쓰기
       const dP = makeDesign(h, floor, panel, true, dustN, ct);
       try {
-        const sido = (store.address || '').includes('서울') ? '서울특별시'
-          : (store.address || '').includes('부산') ? '부산광역시'
-          : (store.address || '').includes('인천') ? '인천광역시'
-          : (store.address || '').includes('대구') ? '대구광역시'
-          : (store.address || '').includes('대전') ? '대전광역시'
-          : (store.address || '').includes('경기') ? '경기도'
-          : (store.address || '').includes('강원') ? '강원도'
-          : (store.address || '').includes('제주') ? '제주특별자치도' : '서울특별시';
+        // ★ BUG-04 FIX: 17개 시도 매핑 재사용
+        const SIDO_MAP2: [RegExp, string][] = [
+          [/서울/, '서울특별시'], [/부산/, '부산광역시'], [/인천/, '인천광역시'],
+          [/대구/, '대구광역시'], [/대전/, '대전광역시'], [/광주/, '광주광역시'],
+          [/울산/, '울산광역시'], [/세종/, '세종특별자치시'], [/제주/, '제주특별자치도'],
+          [/강원/, '강원특별자치도'], [/경기/, '경기도'],
+          [/충북|충청북/, '충청북도'], [/충남|충청남/, '충청남도'],
+          [/전북|전라북/, '전라북도'], [/전남|전라남/, '전라남도'],
+          [/경북|경상북/, '경상북도'], [/경남|경상남/, '경상남도'],
+        ];
+        const sido = SIDO_MAP2.find(([re]) => re.test(store.address || ''))?.[1] ?? '경기도';
         const sigungu = (store.address || '').replace(/.*?(시|도)\s*/, '').replace(/(구|군|시).*/, '$1') || '';
         const sInput: StructSpecInput = {
           location: { sido, sigungu },
