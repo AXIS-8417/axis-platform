@@ -905,9 +905,9 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     { name: '지주파이프', qty: bom.jiuju, price: getPipePrice('지주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '지주파이프' },
     { name: '기초파이프', qty: bom.gichoQty, price: getPipePrice('기초파이프', '고재', input.h, gichoTotalLen), bbGrade: '고재' as const, bbKey: '기초파이프' },
     { name: '고정클램프', qty: bom.gojung, price: CLAMP_PRICE.고정클램프[cg], bbGrade: bbCG, bbKey: '고정클램프' },
-    // H빔: 미기클램프 = 횡대단수 × 주주수 (modBOM line 396-397)
+    // H빔: 싱글클램프 = 횡대단수 × 주주수 (modBOM line 396-397)
     ...(design.isHBeam
-      ? [{ name: '미기클램프', qty: design.hwangdae * bom.juju, price: CLAMP_PRICE.고정클램프[cg], bbGrade: bbCG, bbKey: '고정클램프' }]
+      ? [{ name: '싱글클램프', qty: design.hwangdae * bom.juju, price: CLAMP_PRICE.고정클램프[cg], bbGrade: bbCG, bbKey: '고정클램프' }]
       : [{ name: '자동클램프', qty: bom.jadong, price: CLAMP_PRICE.자동클램프[cg], bbGrade: bbCG, bbKey: '자동클램프' }]
     ),
     { name: '연결핀', qty: bom.pin, price: CLAMP_PRICE.연결핀[cg], bbGrade: bbCG, bbKey: '연결핀' },
