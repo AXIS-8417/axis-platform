@@ -431,10 +431,9 @@ export function calcBOM(len: number, h: number, panel: string, design: Design, d
   let specialName = ''; let specialQty = 0; let specialPrice = 0;
   if (panel === '스틸') { specialName = 'H-BAR'; specialQty = (juju-1)+2; specialPrice = 0; }
   else if (panel === 'RPP') { specialName = '양개조이너'; specialQty = (hwN + 1) * panelQty; specialPrice = MISC_PRICE.양개조이너; }
-  // ★ v74 확정: EGI장수 × ((횡대단수 - 분진망단수) × 2)
+  // ★ v74 수정: EGI장수 × (횡대단수 × 2) — 분진망 미차감 (modBOM line 394)
   else if (panel === 'EGI') {
-    const dustTier = getDustTier(dustN);  // dustN = 분진망 높이(M)
-    specialName = '후크볼트'; specialQty = panelQty * ((hwN - dustTier) * 2); specialPrice = MISC_PRICE.후크볼트;
+    specialName = '후크볼트'; specialQty = panelQty * (hwN * 2); specialPrice = MISC_PRICE.후크볼트;
   }
 
   return { juju, jiuju, hwN, hwCnt, jadong, gojung, pin, dustRolls, gichoQty, panelQty,
@@ -906,7 +905,11 @@ export function calcEstimate(input: QuoteInput, design: Design, opts: CalcOpts):
     { name: '지주파이프', qty: bom.jiuju, price: getPipePrice('지주파이프', pig, input.h, design.gichoLength), bbGrade: bbPiG, bbKey: '지주파이프' },
     { name: '기초파이프', qty: bom.gichoQty, price: getPipePrice('기초파이프', '고재', input.h, gichoTotalLen), bbGrade: '고재' as const, bbKey: '기초파이프' },
     { name: '고정클램프', qty: bom.gojung, price: CLAMP_PRICE.고정클램프[cg], bbGrade: bbCG, bbKey: '고정클램프' },
-    { name: '자동클램프', qty: bom.jadong, price: CLAMP_PRICE.자동클램프[cg], bbGrade: bbCG, bbKey: '자동클램프' },
+    // H빔: 미기클램프 = 횡대단수 × 주주수 (modBOM line 396-397)
+    ...(design.isHBeam
+      ? [{ name: '미기클램프', qty: design.hwangdae * bom.juju, price: CLAMP_PRICE.고정클램프[cg], bbGrade: bbCG, bbKey: '고정클램프' }]
+      : [{ name: '자동클램프', qty: bom.jadong, price: CLAMP_PRICE.자동클램프[cg], bbGrade: bbCG, bbKey: '자동클램프' }]
+    ),
     { name: '연결핀', qty: bom.pin, price: CLAMP_PRICE.연결핀[cg], bbGrade: bbCG, bbKey: '연결핀' },
     { name: '분진망', qty: bom.dustRolls, price: MISC_PRICE.분진망, bbGrade: '신재' as const, bbKey: '분진망' },
     { name: bom.specialName, qty: bom.specialQty, price: bom.specialPrice, bbGrade: bbCG, bbKey: bom.specialName || '' },

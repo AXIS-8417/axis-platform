@@ -266,13 +266,17 @@ export function CalcStructSpec(input: StructSpecInput): StructSpecResult {
     }
   }
 
-  // STEP 4: 보조지주 (비계식만)
+  // STEP 4: 보조지주 — NeedsBracing (VBA v2.1 확정9)
   let hasBracing = false;
   if (structType === '비계식') {
-    hasBracing = (totalH >= 5 || Vo >= 30);
-    // ★ BK_05: 판넬높이 기준 (분진망 제외) — VBA 확정
-    if (input.height >= 6 && !hasBracing) {
-      hasBracing = true;
+    // NeedsBracing 로직 (modStructural_v76 line 33-38)
+    if (input.height >= 5) {
+      hasBracing = true;  // H≥5 → 필수
+    } else if (input.height >= 4 && (Vo >= 30 || 3.0 >= 3)) {  // 실전형 기본경간=3M
+      hasBracing = true;  // H≥4 AND (풍속≥30 OR 경간≥3) → 필수
+    }
+    // ★ BK_05: 판넬높이 H≥6 → 필수 (위에서 이미 처리됨, 경고만 추가)
+    if (input.height >= 6) {
       warnings.push('판넬H≥6m 비계식은 보조지주 필수 (BK_05, 구조적 불가)');
     }
   }
