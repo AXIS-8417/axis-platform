@@ -159,18 +159,20 @@ const EGI_PANEL_PRICE: Record<string, Record<string, Record<string, number>>> = 
 };
 
 // ── 판넬 단가 (높이별 — 엑셀 통합데이터) ──
+// ★ 단가 업데이트 2026-03-27
 const RPP_PRICE: Record<string, Record<number, number>> = {
-  신재: { 2: 10000, 3: 15000, 4: 20000, 5: 25000, 6: 30000, 7: 35000, 8: 40000, 9: 45000, 10: 50000 },
-  고재: { 2: 5500, 3: 8300, 4: 11000, 5: 13800, 6: 16500, 7: 19300, 8: 22000, 9: 24800, 10: 27500 },
+  신재: { 2: 8500, 3: 12700, 4: 17000, 5: 21200, 6: 25500, 7: 29700, 8: 34000, 9: 38200, 10: 42500 },
+  고재: { 2: 4800, 3: 7200, 4: 9600, 5: 12000, 6: 14400, 7: 16800, 8: 19200, 9: 21600, 10: 24000 },
 };
+// ★ 단가 업데이트 2026-03-27 (T:0.5 기준, 고재 수정)
 const EGI_PRICE_BY_H: Record<string, Record<number, number>> = {
-  신재: { 1: 7000, 2: 11000, 3: 16500, 4: 22000, 5: 9000, 6: 9000, 7: 9000, 8: 9000, 9: 9000, 10: 9000 },
-  고재: { 1: 4000, 2: 4400, 3: 6700, 4: 12000, 5: 3000, 6: 3000, 7: 3000, 8: 3000, 9: 3000, 10: 3000 },
+  신재: { 1: 6300, 2: 7000, 3: 10500, 4: 18400, 5: 9000, 6: 9000, 7: 9000, 8: 9000, 9: 9000, 10: 9000 },
+  고재: { 1: 3800, 2: 4200, 3: 6300, 4: 12400, 5: 3000, 6: 3000, 7: 3000, 8: 3000, 9: 3000, 10: 3000 },
 };
 export const PANEL_PRICE: Record<string, Record<string, number>> = {
   '스틸': { 신재: 21000, 고재: 15000 },  // ★ 고재 15,000 (5,000→수정)
-  RPP:   { 신재: 15000, 고재: 8300 },   // 기본값 (높이별은 getPanelPrice)
-  EGI:   { 신재: 9000,  고재: 3000 },
+  RPP:   { 신재: 12700, 고재: 7200 },   // 기본값 3M (높이별은 getPanelPrice)
+  EGI:   { 신재: 6300,  고재: 3800 },  // 기본값 1.8M T:0.5
 };
 
 function egiPriceKey(h: number): number {
@@ -756,7 +758,7 @@ export function calcTransport(dist: number, len: number, isBB: boolean, bomItems
 // ══════════════════════════════════════════
 export const DOOR_PRICE = {
   양개도어:   { 신재: 350000, 고재: 200000 },  // 원/M (per door leaf), H:2.4M, W:2.0~8.0M
-  홀딩도어:   { 신재: 350000, 고재: 270000 },  // ★ FIX-05: 원/M(너비), H:6.0M 고정 (46번시트 확정)
+  홀딩도어:   { 신재: 63000, 고재: 50000 },  // ★ 원/M² (면적 단가), H:6.0M 고정
   현장DIY출입문: { '2.0': 100000, '3.0': 200000, '4.0': 300000, '5.0': 400000, '6.0': 500000 } as Record<string, number>,
   // 레거시 호환
   양개_비계:  { 고재: 100000, 신재: 130000 },  // 원/M, H 2M or 3M, W ≤ 4M
@@ -768,10 +770,11 @@ export const DOOR_PRICE = {
 export function calcGate(gate: string, grade: '고재'|'신재', W: number, _h: number, mesh: boolean) {
   if (!gate || gate === '없음') return { total: 0, body: 0, meshAmt: 0, meshQty: 0 };
   if (gate === '홀딩도어') {
-    // ★ FIX-05: 너비 M당 단가 × 너비(M) = 총금액 (H=6.0M 고정, area 불필요)
+    // ★ M² 단가 × 면적(W×H=6M) = 총금액
     const unitPrice = grade === '신재' ? DOOR_PRICE.홀딩도어.신재 : DOOR_PRICE.홀딩도어.고재;
-    const b = Math.round(W * unitPrice);
-    const meshQty = mesh ? W : 0; // 문짝 1M당 1장
+    const area = W * 6.0;  // H=6.0M 고정
+    const b = Math.round(area * unitPrice);
+    const meshQty = mesh ? W : 0;
     const m = meshQty * DOOR_PRICE.수직포망;
     return { total: b + m, body: b, meshAmt: m, meshQty };
   }
